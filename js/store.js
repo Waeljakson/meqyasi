@@ -7,7 +7,7 @@ const Store = (() => {
     AW = window.Appwrite;
     const client = new AW.Client().setEndpoint(cfg.endpoint).setProject(cfg.projectId);
     account = new AW.Account(client);
-    db = new AW.Databases(client);
+    db = new AW.TablesDB(client);
   }
   const mem = {};
   const ls = {
@@ -56,18 +56,18 @@ const Store = (() => {
         all.unshift(r); ls.set('results', all); return r;
       }
       const role = AW.Role.user(user.id);
-      const d = await db.createDocument(cfg.databaseId, cfg.collectionId, AW.ID.unique(), toDoc(r),
+      const d = await db.createRow(cfg.databaseId, cfg.tableId, AW.ID.unique(), toDoc(r),
         [AW.Permission.read(role), AW.Permission.delete(role)]);
       return fromDoc(d);
     },
     async listResults() {
       if (!live) return ls.get('results', []);
-      const res = await db.listDocuments(cfg.databaseId, cfg.collectionId, [AW.Query.orderDesc('$createdAt'), AW.Query.limit(100)]);
-      return res.documents.map(fromDoc);
+      const res = await db.listRows(cfg.databaseId, cfg.tableId, [AW.Query.orderDesc('$createdAt'), AW.Query.limit(100)]);
+      return res.rows.map(fromDoc);
     },
     async deleteResult(id) {
       if (!live) { ls.set('results', ls.get('results', []).filter(r => r.id !== id)); return; }
-      await db.deleteDocument(cfg.databaseId, cfg.collectionId, id);
+      await db.deleteRow(cfg.databaseId, cfg.tableId, id);
     }
   };
 })();

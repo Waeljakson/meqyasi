@@ -20,7 +20,7 @@ SCARED، PHQ-9، GAD-7، DASS-21، WHO-5، PSS-10، روزنبرغ، MSPSS، SWL
 ## ربط Appwrite
 1. أنشئ مشروعاً، ثم من Overview → Add platform → Web أضف اسم النطاق (مثل `waeljakson.github.io`).
 2. Auth → Settings: فعّل Email/Password.
-3. Databases: أنشئ قاعدة بيانات بالمعرّف `nafsi` وجدولاً (Collection) بالمعرّف `results`.
+3. Databases: أنشئ قاعدة بيانات TablesDB وجدولاً (Table) بالمعرّف `results`، وضع معرّف القاعدة في `databaseId` داخل `js/config.js`.
 4. في إعدادات الجدول: Permissions → أضف الدور `Users` بصلاحية Create فقط، وفعّل **Document security**.
 5. أضف الأعمدة (Attributes):
 

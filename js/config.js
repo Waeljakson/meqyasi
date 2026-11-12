@@ -4,8 +4,8 @@ window.APP_CONFIG = {
   appName: 'مقياسي',
   endpoint: 'https://fra.cloud.appwrite.io/v1', // Endpoint من إعدادات مشروع Appwrite
   projectId: '6af60a8400323e1941e0',                            // Project ID
-  databaseId: 'nafsi',                      // معرّف قاعدة البيانات
-  collectionId: 'results',                  // معرّف جدول النتائج
+  databaseId: '6af61245000ab2cb25cb',                      // معرّف قاعدة البيانات
+  tableId: 'results',                  // معرّف جدول النتائج
   // نص يظهر عند وجود مؤشر خطر عاجل — ضع هنا أرقام الجهات المعتمدة في بلدك/مؤسستك.
   urgentHelp: 'إذا كانت تراودك أفكار بإيذاء نفسك أو كنت في خطر الآن: تحدث فوراً مع شخص بالغ تثق به، واتصل بخدمات الطوارئ في بلدك أو توجه إلى أقرب قسم طوارئ.'
 };
