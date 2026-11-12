@@ -61,6 +61,15 @@ const Store = (() => {
       await account.createEmailPasswordSession(email, password);
       return current();
     },
+    async recover(email) {
+      if (!live) throw new Error('غير متاح في الوضع التجريبي');
+      await account.createRecovery(email, cfg.siteUrl);
+    },
+    async resetPassword(userId, secret, password) { await account.updateRecovery(userId, secret, password); },
+    progress: {
+      get(userId, scaleId) { const p = ls.get('progress', null); return p && p.userId === userId && p.scaleId === scaleId ? p : null; },
+      set(p) { ls.set('progress', p); }, clear() { ls.del('progress'); }
+    },
     async logout() {
       if (!live) { ls.del('user'); return; }
       await account.deleteSession('current');
@@ -97,12 +106,18 @@ const Store = (() => {
     },
     // ---------- الإدارة (لمن يحمل الوسم admin فقط؛ الصلاحية يفرضها Appwrite) ----------
     async adminData() {
-      const [profiles, results, blocks] = await Promise.all([listAll(cfg.profilesTableId), listAll(cfg.tableId), listAll(cfg.blocksTableId)]);
+      const [profiles, results, blocks, notes] = await Promise.all([listAll(cfg.profilesTableId), listAll(cfg.tableId), listAll(cfg.blocksTableId), listAll(cfg.notesTableId).catch(() => [])]);
       return {
         users: profiles.map(p => ({ id: p.userId, name: p.name, email: p.email, birthYear: p.birthYear, gender: p.gender, joined: p.$createdAt })),
-        results: results.map(fromDoc), blocked: blocks.map(b => b.userId)
+        results: results.map(fromDoc), blocked: blocks.map(b => b.userId),
+        notes: notes.map(n => ({ id: n.$id, userId: n.userId, text: n.text, author: n.author, date: n.$createdAt }))
       };
     },
+    async addNote(userId, text, author) {
+      const n = await db.createRow(cfg.databaseId, cfg.notesTableId, AW.ID.unique(), { userId, text, author });
+      return { id: n.$id, userId, text, author, date: n.$createdAt };
+    },
+    async deleteNote(id) { await db.deleteRow(cfg.databaseId, cfg.notesTableId, id); },
     async block(userId) { await db.createRow(cfg.databaseId, cfg.blocksTableId, userId, { userId }); },
     async unblock(userId) { await db.deleteRow(cfg.databaseId, cfg.blocksTableId, userId); }
   };
