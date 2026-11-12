@@ -15,40 +15,64 @@ const Store = (() => {
     set(k, v) { mem[k] = v; try { localStorage.setItem('nafsi_' + k, JSON.stringify(v)); } catch (e) { /* يبقى في الذاكرة */ } },
     del(k) { delete mem[k]; try { localStorage.removeItem('nafsi_' + k); } catch (e) { /* لا شيء */ } }
   };
-  const toUser = u => ({ id: u.$id, name: u.name, email: u.email, profile: u.prefs || {} });
-  const toDoc = r => ({
+  const toUser = u => ({ id: u.$id, name: u.name, email: u.email, profile: u.prefs || {}, isAdmin: (u.labels || []).includes('admin') });
+  const toDoc = (r, user) => ({
     scaleId: r.scaleId, scaleName: r.scaleName, total: r.total, max: r.max, band: r.band, level: r.level,
-    urgent: !!r.urgent, subs: JSON.stringify(r.subs), answers: JSON.stringify(r.answers), age: r.age, gender: r.gender
+    urgent: !!r.urgent, subs: JSON.stringify(r.subs), answers: JSON.stringify(r.answers), age: r.age, gender: r.gender,
+    userId: user.id, userName: user.name
   });
   const fromDoc = d => ({
     id: d.$id, date: d.$createdAt, scaleId: d.scaleId, scaleName: d.scaleName, total: d.total, max: d.max, band: d.band,
-    level: d.level, urgent: d.urgent, subs: JSON.parse(d.subs || '[]'), answers: JSON.parse(d.answers || '[]'), age: d.age, gender: d.gender
+    level: d.level, urgent: d.urgent, subs: JSON.parse(d.subs || '[]'), answers: JSON.parse(d.answers || '[]'), age: d.age, gender: d.gender,
+    userId: d.userId || '', userName: d.userName || ''
   });
+  async function listAll(tableId, extra) {
+    const out = []; let offset = 0;
+    for (;;) {
+      const res = await db.listRows(cfg.databaseId, tableId, [AW.Query.orderDesc('$createdAt'), AW.Query.limit(100), AW.Query.offset(offset)].concat(extra || []));
+      out.push(...res.rows); offset += res.rows.length;
+      if (res.rows.length < 100 || offset >= 5000) return out;
+    }
+  }
+  async function current() {
+    const u = toUser(await account.get());
+    if (!u.isAdmin) {
+      let blocked = false;
+      try { await db.getRow(cfg.databaseId, cfg.blocksTableId, u.id); blocked = true; } catch (e) { blocked = false; }
+      if (blocked) { try { await account.deleteSession('current'); } catch (e) { /* لا شيء */ } throw new Error('BLOCKED'); }
+    }
+    return u;
+  }
 
   return {
     live,
     async me() {
       if (!live) return ls.get('user', null);
-      try { return toUser(await account.get()); } catch (e) { return null; }
+      try { return await current(); } catch (e) { if (e.message === 'BLOCKED') throw e; return null; }
     },
     async signup(email, password, name) {
       if (!live) { const u = { id: 'local', name, email, profile: {} }; ls.set('user', u); return u; }
       await account.create(AW.ID.unique(), email, password, name);
       await account.createEmailPasswordSession(email, password);
-      return toUser(await account.get());
+      return current();
     },
     async login(email, password) {
       if (!live) { const u = ls.get('user', null) || { id: 'local', name: email.split('@')[0], email, profile: {} }; ls.set('user', u); return u; }
       await account.createEmailPasswordSession(email, password);
-      return toUser(await account.get());
+      return current();
     },
     async logout() {
       if (!live) { ls.del('user'); return; }
       await account.deleteSession('current');
     },
-    async saveProfile(profile) {
+    async saveProfile(user, profile) {
       if (!live) { const u = ls.get('user', null); u.profile = profile; ls.set('user', u); return u; }
-      return toUser(await account.updatePrefs(profile));
+      const u = toUser(await account.updatePrefs(profile));
+      const row = { userId: u.id, name: u.name, email: u.email, birthYear: profile.birthYear, gender: profile.gender, consent: !!profile.consent };
+      const role = AW.Role.user(u.id);
+      try { await db.updateRow(cfg.databaseId, cfg.profilesTableId, u.id, row); }
+      catch (e) { try { await db.createRow(cfg.databaseId, cfg.profilesTableId, u.id, row, [AW.Permission.read(role), AW.Permission.update(role)]); } catch (e2) { /* سجل الإدارة اختياري */ } }
+      return u;
     },
     async saveResult(user, r) {
       if (!live) {
@@ -56,18 +80,30 @@ const Store = (() => {
         all.unshift(r); ls.set('results', all); return r;
       }
       const role = AW.Role.user(user.id);
-      const d = await db.createRow(cfg.databaseId, cfg.tableId, AW.ID.unique(), toDoc(r),
+      const d = await db.createRow(cfg.databaseId, cfg.tableId, AW.ID.unique(), toDoc(r, user),
         [AW.Permission.read(role), AW.Permission.delete(role)]);
       return fromDoc(d);
     },
-    async listResults() {
+    async listResults(user) {
       if (!live) return ls.get('results', []);
-      const res = await db.listRows(cfg.databaseId, cfg.tableId, [AW.Query.orderDesc('$createdAt'), AW.Query.limit(100)]);
+      const q = [AW.Query.orderDesc('$createdAt'), AW.Query.limit(100)];
+      if (user && user.isAdmin) q.push(AW.Query.equal('userId', user.id));
+      const res = await db.listRows(cfg.databaseId, cfg.tableId, q);
       return res.rows.map(fromDoc);
     },
     async deleteResult(id) {
       if (!live) { ls.set('results', ls.get('results', []).filter(r => r.id !== id)); return; }
       await db.deleteRow(cfg.databaseId, cfg.tableId, id);
-    }
+    },
+    // ---------- الإدارة (لمن يحمل الوسم admin فقط؛ الصلاحية يفرضها Appwrite) ----------
+    async adminData() {
+      const [profiles, results, blocks] = await Promise.all([listAll(cfg.profilesTableId), listAll(cfg.tableId), listAll(cfg.blocksTableId)]);
+      return {
+        users: profiles.map(p => ({ id: p.userId, name: p.name, email: p.email, birthYear: p.birthYear, gender: p.gender, joined: p.$createdAt })),
+        results: results.map(fromDoc), blocked: blocks.map(b => b.userId)
+      };
+    },
+    async block(userId) { await db.createRow(cfg.databaseId, cfg.blocksTableId, userId, { userId }); },
+    async unblock(userId) { await db.deleteRow(cfg.databaseId, cfg.blocksTableId, userId); }
   };
 })();

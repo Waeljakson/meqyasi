@@ -77,3 +77,13 @@ table{width:100%;border-collapse:collapse}th,td{padding:8px;border-bottom:1px so
 @media (max-width:520px){.opts.many{grid-template-columns:1fr}.theme-child .opts{grid-template-columns:1fr}.emo{display:inline;font-size:1.8rem;margin-inline-end:8px}.card{padding:16px}}
 @media print{.no-print{display:none!important}body{background:#fff!important;color:#000;font-size:13px}.card{box-shadow:none!important;border:0!important;padding:0}
   .theme-teen,.theme-child{--card:#fff;--ink:#000;--muted:#444;--line:#ccc}.band,.gauge i,.advice,.urgent{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
+
+/* لوحة الإدارة */
+main.wide{max-width:1150px}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-top:12px}
+.tile{border:1.5px solid var(--line);border-radius:12px;padding:14px;text-align:center}.tile b{display:block;font-size:2rem;line-height:1.3}.tile span{color:var(--muted)}
+.tile.warn b{color:var(--mod)}.tile.danger b{color:var(--high)}
+.tw{overflow-x:auto}.tw table{min-width:640px}.blk{opacity:.55}
+.chip{display:inline-block;padding:1px 10px;border-radius:99px;color:#fff;font-size:.85rem;font-weight:700}
+.hbar{display:grid;grid-template-columns:150px 1fr 40px;gap:8px;align-items:center;margin:6px 0}.hbar i{display:block;height:12px;border-radius:99px;background:var(--pri);min-width:4px}
+@media (max-width:520px){.hbar{grid-template-columns:100px 1fr 30px}}

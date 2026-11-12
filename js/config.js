@@ -5,7 +5,9 @@ window.APP_CONFIG = {
   endpoint: 'https://fra.cloud.appwrite.io/v1', // Endpoint من إعدادات مشروع Appwrite
   projectId: '6af60a8400323e1941e0',                            // Project ID
   databaseId: '6af61245000ab2cb25cb',                      // معرّف قاعدة البيانات
-  tableId: 'results',                  // معرّف جدول النتائج
+  tableId: 'results',                         // جدول النتائج
+  profilesTableId: 'profiles',                // جدول بيانات المستخدمين (للإدارة)
+  blocksTableId: 'blocks',                    // جدول الحسابات الموقوفة
   // نص يظهر عند وجود مؤشر خطر عاجل — ضع هنا أرقام الجهات المعتمدة في بلدك/مؤسستك.
   urgentHelp: 'إذا كانت تراودك أفكار بإيذاء نفسك أو كنت في خطر الآن: تحدث فوراً مع شخص بالغ تثق به، واتصل بخدمات الطوارئ في بلدك أو توجه إلى أقرب قسم طوارئ.'
 };
