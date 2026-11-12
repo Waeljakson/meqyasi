@@ -116,4 +116,31 @@ function buildPlan(scale, result) {
   return { goal: p.goal, steps, habits: BASE_HABITS, referral };
 }
 
-if (typeof module !== 'undefined') module.exports = { ADVICE, buildPlan };
+// نصائح رب الأسرة من نتائج الأفراد. members: [{name, age, self, top, urgent, domains}]
+function buildFamilyAdvice(members) {
+  const measured = members.filter(m => m.top >= 0), un = members.filter(m => m.top < 0);
+  const maxTop = measured.length ? Math.max(...measured.map(m => m.top)) : -1;
+  const high = measured.filter(m => m.top >= 2), any = measured.filter(m => m.top >= 1), tips = [];
+  let tone = 'ok', title = 'الأسرة بخير حسب المقاييس المنجزة', text = 'لم تظهر مؤشرات تستدعي القلق لدى من أجروا المقاييس. حافظوا على عاداتكم الأسرية وأعيدوا القياس عند أي تغير.';
+  if (maxTop < 0) { tone = 'mild'; title = 'لا توجد بيانات كافية بعد'; text = 'لم يُجرِ أي فرد مقياساً حتى الآن. ابدأ بنفسك ثم بأفراد أسرتك.'; }
+  else if (maxTop === 1) { tone = 'mild'; title = 'مؤشرات خفيفة لدى بعض الأفراد'; text = 'تظهر مؤشرات خفيفة يمكن التعامل معها غالباً بالدعم الأسري والمتابعة. أعيدوا القياس بعد أسبوعين إلى أربعة.'; }
+  else if (maxTop >= 2) { tone = maxTop === 3 ? 'high' : 'mod'; title = 'يوجد في الأسرة من يحتاج مراجعة مختص'; text = 'نتائج بعض الأفراد تشير إلى مؤشرات متوسطة أو مرتفعة. الأولوية الآن ترتيب موعد مع أخصائي نفسي لهم، والدعم الأسري مساند لا بديل.'; }
+  members.filter(m => m.urgent).forEach(m => tips.push(`<b>عاجل:</b> كن قريباً من ${m.name} هذه الأيام، وتواصل مع مختص اليوم.`));
+  high.forEach(m => tips.push(`احجز موعداً لـ${m.name} مع أخصائي نفسي${m.top === 3 ? ' خلال أيام' : ' خلال أسبوعين'}، واصطحب تقريره من المنصة.`));
+  const kids = any.filter(m => m.age < 18 && !m.self), adults = any.filter(m => m.age >= 18 && !m.self), me = any.find(m => m.self);
+  if (kids.length) {
+    tips.push(`مع ${kids.map(m => m.name).join(' و')}: استمع أولاً دون تهويل أو استخفاف، وساعد على تسمية المشاعر، ولا تعاقب على الخوف أو الحزن.`);
+    tips.push('نسّق مع المرشد الطلابي في المدرسة، فكثير من مؤشرات الأبناء تظهر هناك قبل البيت.');
+    if (kids.some(m => m.domains.includes('child_anxiety') || m.domains.includes('anxiety'))) tips.push('للقلق عند الأبناء: تجنيب الطفل كل ما يخيفه يزيد القلق؛ الأفضل مواجهة المخاوف بخطوات صغيرة متدرجة مع مدح كل خطوة.');
+  }
+  if (adults.length) tips.push(`مع ${adults.map(m => m.name).join(' و')}: ادعم دون ضغط أو لوم، واعرض المرافقة إلى المختص، والقرار في النهاية لصاحب الشأن.`);
+  if (me) tips.push('ابدأ بنفسك: حالتك النفسية تنعكس على أسرتك، وطلبك للمساعدة قدوة لأبنائك لا ضعف.');
+  if (any.length >= 2) tips.push('أكثر من فرد تظهر عليه مؤشرات: راجعوا مصادر الضغط المشتركة (خلافات، ضغوط مالية أو دراسية، تغيّر كبير في البيت)، وفكّروا في جلسة إرشاد أسري.');
+  if (un.length) tips.push(`لم يُجرِ ${un.map(m => m.name).join(' و')} أي مقياس؛ لا يمكن الحكم على وضعهم من هذا التقرير.`);
+  tips.push('لا تستخدم النتائج للّوم أو للمقارنة بين الأبناء، ولا تُطلع أحداً من الإخوة على نتائج أخيه.');
+  tips.push('أعيدوا المقاييس بعد 2–4 أسابيع وقارنوا التطور من صفحة السجل.');
+  const habits = ['20 دقيقة يومياً من الوقت الأسري بلا شاشات.', 'وجبة مشتركة واحدة على الأقل يومياً.', 'جلسة أسرية أسبوعية قصيرة يتحدث فيها كل فرد عن أسبوعه دون مقاطعة.', 'موعد نوم منتظم وحدود واضحة للشاشات للجميع، الكبار قبل الصغار.', 'نشاط حركي مشترك مرة في الأسبوع.'];
+  return { tone, title, text, tips, habits };
+}
+
+if (typeof module !== 'undefined') module.exports = { ADVICE, buildPlan, buildFamilyAdvice };

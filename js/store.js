@@ -19,13 +19,14 @@ const Store = (() => {
   const toDoc = (r, user) => ({
     scaleId: r.scaleId, scaleName: r.scaleName, total: r.total, max: r.max, band: r.band, level: r.level,
     urgent: !!r.urgent, subs: JSON.stringify(r.subs), answers: JSON.stringify(r.answers), age: r.age, gender: r.gender,
-    userId: user.id, userName: user.name
+    userId: user.id, userName: user.name, memberId: r.memberId || '', memberName: r.memberName || ''
   });
   const fromDoc = d => ({
     id: d.$id, date: d.$createdAt, scaleId: d.scaleId, scaleName: d.scaleName, total: d.total, max: d.max, band: d.band,
     level: d.level, urgent: d.urgent, subs: JSON.parse(d.subs || '[]'), answers: JSON.parse(d.answers || '[]'), age: d.age, gender: d.gender,
-    userId: d.userId || '', userName: d.userName || ''
+    userId: d.userId || '', userName: d.userName || '', memberId: d.memberId || '', memberName: d.memberName || ''
   });
+  const toMember = m => ({ id: m.$id, ownerId: m.ownerId, name: m.name, relation: m.relation, birthYear: m.birthYear, gender: m.gender });
   async function listAll(tableId, extra) {
     const out = []; let offset = 0;
     for (;;) {
@@ -100,16 +101,32 @@ const Store = (() => {
       const res = await db.listRows(cfg.databaseId, cfg.tableId, q);
       return res.rows.map(fromDoc);
     },
+    async listMembers(user) {
+      if (!live) return ls.get('members', []);
+      const q = [AW.Query.limit(100)]; if (user.isAdmin) q.push(AW.Query.equal('ownerId', user.id));
+      return (await db.listRows(cfg.databaseId, cfg.membersTableId, q)).rows.map(toMember);
+    },
+    async addMember(user, m) {
+      if (!live) { const all = ls.get('members', []); m.id = 'm' + Date.now(); m.ownerId = user.id; all.push(m); ls.set('members', all); return m; }
+      const role = AW.Role.user(user.id);
+      return toMember(await db.createRow(cfg.databaseId, cfg.membersTableId, AW.ID.unique(),
+        { ownerId: user.id, name: m.name, relation: m.relation, birthYear: m.birthYear, gender: m.gender },
+        [AW.Permission.read(role), AW.Permission.update(role), AW.Permission.delete(role)]));
+    },
+    async deleteMember(id) {
+      if (!live) { ls.set('members', ls.get('members', []).filter(m => m.id !== id)); return; }
+      await db.deleteRow(cfg.databaseId, cfg.membersTableId, id);
+    },
     async deleteResult(id) {
       if (!live) { ls.set('results', ls.get('results', []).filter(r => r.id !== id)); return; }
       await db.deleteRow(cfg.databaseId, cfg.tableId, id);
     },
     // ---------- الإدارة (لمن يحمل الوسم admin فقط؛ الصلاحية يفرضها Appwrite) ----------
     async adminData() {
-      const [profiles, results, blocks, notes] = await Promise.all([listAll(cfg.profilesTableId), listAll(cfg.tableId), listAll(cfg.blocksTableId), listAll(cfg.notesTableId).catch(() => [])]);
+      const [profiles, results, blocks, notes, members] = await Promise.all([listAll(cfg.profilesTableId), listAll(cfg.tableId), listAll(cfg.blocksTableId), listAll(cfg.notesTableId).catch(() => []), listAll(cfg.membersTableId).catch(() => [])]);
       return {
         users: profiles.map(p => ({ id: p.userId, name: p.name, email: p.email, birthYear: p.birthYear, gender: p.gender, joined: p.$createdAt })),
-        results: results.map(fromDoc), blocked: blocks.map(b => b.userId),
+        results: results.map(fromDoc), members: members.map(toMember), blocked: blocks.map(b => b.userId),
         notes: notes.map(n => ({ id: n.$id, userId: n.userId, text: n.text, author: n.author, date: n.$createdAt }))
       };
     },

@@ -91,3 +91,52 @@ main.wide{max-width:1150px}
 .spark{width:160px;height:36px;color:var(--pri);vertical-align:middle}
 .trend{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:6px 0;border-bottom:1px solid var(--line)}.trend b{min-width:130px}.trend small{color:var(--muted)}
 footer .link{font-size:.85rem}
+
+/* الأشخاص والأسرة */
+.people{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-bottom:8px}
+.pchip{font:inherit;font-weight:700;padding:6px 14px;border-radius:99px;border:2px solid var(--line);background:var(--card);color:var(--ink);cursor:pointer;display:inline-flex;gap:6px;align-items:center}
+.pchip.on{border-color:var(--pri);background:var(--pri);color:var(--pri-ink)}.pchip.add{border-style:dashed;color:var(--pri)}
+.fams{display:flex;gap:18px;flex-wrap:wrap;justify-content:center;margin:14px 0}.fam{text-align:center}.fam b{display:block;font-size:.9rem}
+.av{display:inline-grid;place-items:center;width:62px;height:62px;border-radius:50%;font-size:1.9rem;border:4px solid transparent;background:#f3f4f6!important}
+.av.l0{border-color:var(--ok)}.av.l1{border-color:var(--mild)}.av.l2{border-color:var(--mod)}.av.l3{border-color:var(--high)}.av.none{border-color:var(--line);border-style:dashed}
+
+/* تطوير الواجهة */
+.heroart{width:180px;max-width:60%;display:block;margin:0 auto 6px}
+form.start{text-align:start}
+.scale{position:relative;overflow:hidden}.scale::before{content:'';position:absolute;inset-inline-end:-26px;top:-26px;width:92px;height:92px;border-radius:50%;background:var(--tint,#dbeafe);opacity:.55}
+.scale>*{position:relative}
+.k0{--tint:#bfdbfe}.k1{--tint:#bbf7d0}.k2{--tint:#fde68a}.k3{--tint:#fbcfe8}.k4{--tint:#ddd6fe}.k5{--tint:#fed7aa}
+.theme-teen .scale::before{opacity:.22}
+.qhead{display:flex;align-items:center;justify-content:center;gap:10px;margin-top:12px}
+.qico{font-size:2.2rem;width:64px;height:64px;display:grid;place-items:center;border-radius:50%;background:color-mix(in srgb,var(--pri) 14%,transparent)}
+.opt{display:flex;align-items:center;gap:12px;text-align:start}
+.dot{flex:none;width:30px;height:30px;border-radius:50%;display:grid;place-items:center;background:color-mix(in srgb,var(--pri) 16%,transparent);font-weight:800;font-size:.9rem}
+.opt.sel .dot{background:var(--pri);color:var(--pri-ink)}
+
+/* أسئلة الأطفال الكرتونية */
+.kidq{overflow:hidden}
+.journey{position:relative;height:110px;margin:-22px -22px 8px;background:linear-gradient(#a5ddff,#d9f3ff);overflow:hidden}
+.scene{position:absolute;inset:0;width:100%;height:100%}
+.cloud{position:absolute;top:14px;width:70px;height:24px;border-radius:99px;background:#fff;opacity:.9;animation:drift 22s linear infinite}
+.cloud::before{content:'';position:absolute;width:34px;height:34px;border-radius:50%;background:#fff;top:-14px;left:14px}
+.cloud.c2{top:34px;animation-duration:31s;animation-delay:-12s;transform:scale(.7)}
+.goal{position:absolute;inset-inline-end:10px;bottom:16px;font-size:2.4rem}
+.walker{position:absolute;bottom:10px;transition:inset-inline-start .6s cubic-bezier(.3,1.5,.5,1)}
+.walker .mascot{width:54px;height:54px;animation:hop .9s ease-in-out infinite}
+.ask{display:flex;align-items:center;justify-content:center;gap:14px;margin:6px 0}
+.pic{font-size:3.4rem;width:104px;height:104px;display:grid;place-items:center;border-radius:50%;background:#fff7d6;border:5px solid #ffd166;animation:wob 2.4s ease-in-out infinite}
+.bubble{position:relative;background:#fff;border:3px solid #9bd5f5;border-radius:18px;padding:6px 14px;font-weight:800;color:#0b7285}
+.opts.kids{grid-template-columns:repeat(3,1fr)!important}
+.opt.kid{flex-direction:column;text-align:center;gap:4px;padding:12px 6px}
+.face{width:76px;height:76px;transition:transform .15s}.opt.kid:hover .face,.opt.kid.sel .face{transform:scale(1.12) rotate(-4deg)}
+.opt.kid.f0{border-color:#86efac}.opt.kid.f1{border-color:#fde68a}.opt.kid.f2{border-color:#fdba74}
+.medal{font-size:4rem;animation:pop .6s}
+.party{position:relative;overflow:hidden}
+.confetti{position:absolute;inset:0;pointer-events:none}
+.confetti i{position:absolute;top:-12px;left:var(--x);width:10px;height:16px;background:var(--c);border-radius:3px;animation:fall 2.6s var(--d) ease-in infinite}
+@keyframes drift{from{left:-90px}to{left:100%}}
+@keyframes hop{50%{transform:translateY(-9px) rotate(6deg)}}
+@keyframes wob{50%{transform:rotate(5deg) scale(1.04)}}
+@keyframes fall{to{transform:translateY(520px) rotate(540deg);opacity:.2}}
+@media (max-width:520px){.journey{margin:-16px -16px 8px}.opts.kids{grid-template-columns:repeat(3,1fr)!important}.face{width:58px;height:58px}.pic{width:84px;height:84px;font-size:2.7rem}.opt.kid span{font-size:.95rem}}
+@media print{.journey,.confetti,.people{display:none!important}}
