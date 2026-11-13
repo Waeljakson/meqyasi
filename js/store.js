@@ -174,6 +174,38 @@ const Store = (() => {
       if (!live) { ls.set('results', ls.get('results', []).filter(r => r.id !== id)); return; }
       await db.deleteRow(cfg.databaseId, cfg.tableId, id);
     },
+    // ---------- عداد الزيارات: معرّف عشوائي للمتصفح فقط، بلا اسم ولا بريد ولا عنوان شبكي ----------
+    async track(type, scaleId) {
+      try {
+        const day = new Date().toISOString().slice(0, 10);
+        if (type === 'visit') { if (ls.get('vday', '') === day) return; ls.set('vday', day); }
+        let vid = ls.get('vid', ''); if (!vid) { vid = Date.now().toString(36) + Math.random().toString(36).slice(2, 10); ls.set('vid', vid); }
+        const row = { type, scaleId: scaleId || '', day, vid };
+        if (!live) { const a = ls.get('visits', []); a.push(row); ls.set('visits', a); return; }
+        await db.createRow(cfg.databaseId, cfg.visitsTableId, AW.ID.unique(), row);
+      } catch (e) { /* العداد لا يعطّل المنصة */ }
+    },
+    async visitStats() {
+      const day = new Date().toISOString().slice(0, 10);
+      let rows, tot = {};
+      if (!live) rows = ls.get('visits', []);
+      else {
+        rows = await listAll(cfg.visitsTableId, [AW.Query.select(['type', 'scaleId', 'day', 'vid'])]);
+        const cnt = async q => (await db.listRows(cfg.databaseId, cfg.visitsTableId, q.concat([AW.Query.limit(1)]))).total;
+        const [v, o] = await Promise.all([cnt([AW.Query.equal('type', 'visit')]), cnt([AW.Query.equal('type', 'open')])]);
+        tot = { v, o };
+      }
+      const vis = rows.filter(r => r.type === 'visit'), op = rows.filter(r => r.type === 'open');
+      const d7 = new Date(Date.now() - 6 * 864e5).toISOString().slice(0, 10);
+      const perScale = {}; op.forEach(r => { perScale[r.scaleId] = (perScale[r.scaleId] || 0) + 1; });
+      const days = []; for (let i = 13; i >= 0; i--) { const d = new Date(Date.now() - i * 864e5).toISOString().slice(0, 10); days.push({ d, v: vis.filter(r => r.day === d).length, o: op.filter(r => r.day === d).length }); }
+      return {
+        visits: Math.max(tot.v || 0, vis.length), opens: Math.max(tot.o || 0, op.length), partial: (tot.v || 0) + (tot.o || 0) > rows.length,
+        visitors: new Set(vis.map(r => r.vid)).size, openers: new Set(op.map(r => r.vid)).size,
+        vToday: vis.filter(r => r.day === day).length, oToday: op.filter(r => r.day === day).length,
+        v7: vis.filter(r => r.day >= d7).length, o7: op.filter(r => r.day >= d7).length, perScale, days
+      };
+    },
     // ---------- الإدارة (لمن يحمل الوسم admin فقط؛ الصلاحية يفرضها Appwrite) ----------
     async adminData() {
       const [profiles, results, blocks, notes, members, intakes] = await Promise.all([listAll(cfg.profilesTableId), listAll(cfg.tableId), listAll(cfg.blocksTableId), listAll(cfg.notesTableId).catch(() => []), listAll(cfg.membersTableId).catch(() => []), listAll(cfg.intakesTableId).catch(() => [])]);

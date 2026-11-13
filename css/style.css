@@ -338,3 +338,13 @@ textarea{display:block;width:100%;margin-top:4px;padding:12px;border:1.5px solid
 .proof{display:block;max-width:320px;width:100%;margin-top:6px;border-radius:10px;border:1px solid var(--line)}
 input[type=file]{padding:8px}summary{cursor:pointer}
 @media (max-width:640px){nav button{padding:4px 5px}}
+
+/* عداد الزيارات */
+.vchart{display:flex;gap:6px;align-items:flex-end;height:150px;margin:8px 0 4px}
+.vcol{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;height:100%;min-width:0}
+.vbars{flex:1;width:100%;display:flex;align-items:flex-end;justify-content:center;gap:2px;border-bottom:1.5px solid var(--line)}
+.vbars i{display:block;width:42%;max-width:16px;min-height:2px;border-radius:4px 4px 0 0;background:var(--pri)}
+.vbars i.o,.vleg i.o{background:var(--mod)}
+.vcol small{font-size:.68rem;color:var(--muted);white-space:nowrap}
+.vleg{display:flex;gap:16px;font-size:.85rem;color:var(--muted)}.vleg i{display:inline-block;width:10px;height:10px;border-radius:3px;background:var(--pri)}
+@media (max-width:520px){.vcol small{font-size:.55rem}.vchart{gap:3px}}

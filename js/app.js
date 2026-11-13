@@ -262,6 +262,7 @@ const V = {
     <h3>ما الذي نحفظه؟</h3><ul><li>الاسم والبريد الإلكتروني وسنة الميلاد والجنس.</li><li>أفراد الأسرة الذين تضيفهم: الاسم وصلة القرابة وسنة الميلاد والجنس.</li><li>الإجابات والدرجات في كل مقياس وتاريخ إجرائه، لك ولأفراد أسرتك.</li><li>طلبات الاشتراك: اسم المحوِّل ورقم العملية وصورة إثبات الدفع التي ترفعها.</li><li>استمارة تاريخ الحالة إن عبّأتها: الشكوى ومدتها وتأثيرها، والأدوية والحالات الصحية والتاريخ الأسري. كلها اختيارية.</li></ul>
     <h3>من يطّلع عليه؟</h3><ul><li>صاحب الحساب: يرى نتائجه ونتائج الأفراد الذين أضافهم.</li><li>مختص المنصة (مدير النظام): يطّلع على بيانات ونتائج المستخدمين وأفراد أسرهم بغرض المتابعة والإرشاد فقط.</li><li>لا تُشارك البيانات مع أي جهة أخرى ولا تُستخدم للإعلانات.</li></ul>
     <h3>أين تُحفظ؟</h3><p>في قاعدة بيانات المنصة لدى خدمة Appwrite السحابية. كلمة المرور لا يراها أحد، ولا مدير النظام.</p>
+    <h3>إحصاءات الزيارات</h3><p>نعدّ زيارات المنصة ومرات فتح المقاييس برمز عشوائي يُحفظ على جهازك، دون اسم أو بريد أو عنوان شبكي، ولا يُربط بحسابك.</p>
     <h3>حقوقك</h3><ul><li>حذف أي نتيجة أو أي فرد من حسابك في أي وقت.</li><li>طلب حذف حسابك وكل بياناتك بالتواصل مع إدارة المنصة.</li></ul>
     <h3>القاصرون وأفراد الأسرة البالغون</h3><p>يُشترط أن يكون من يضيف قاصراً هو ولي أمره. الفرد البالغ يجيب عن مقاييسه بنفسه وبعلمه وموافقته، ولا يُجرى له مقياس دون علمه.</p>
     <h3>تنبيه</h3><p>المنصة أداة فرز أولي، لا تقدم تشخيصاً ولا علاجاً، ولا تغني عن مراجعة المختص. في الحالات العاجلة: ${esc(cfg.urgentHelp)}</p>
@@ -295,8 +296,16 @@ const V = {
         <h3>السعودية</h3><div class="two">${inp('sa_price', 'السعر', P.sa.price)}${inp('sa_bank', 'البنك', P.sa.bank)}</div><div class="two">${inp('sa_name', 'اسم صاحب الحساب', P.sa.name)}${inp('sa_account', 'رقم الحساب', P.sa.account, 1)}</div>
         <div class="two">${inp('sa_iban', 'الآيبان', P.sa.iban, 1)}${inp('sa_swift', 'سويفت', P.sa.swift, 1)}</div><label>صورة QR الحساب ${S.settings.qr_sa ? '(مرفوعة)' : ''}<input type="file" name="qr_sa" accept="image/*"></label>
         <button class="btn primary" type="submit">حفظ بيانات الدفع</button></form></details></section>`;
+    const VS = S.visits, vmx = VS ? Math.max(1, ...VS.days.map(x => Math.max(x.v, x.o))) : 1, omx = VS ? Math.max(1, ...Object.values(VS.perScale)) : 1;
+    const visitBlock = !VS ? '<section class="card"><h2>عداد الزيارات</h2><p class="muted">تعذر تحميل العداد.</p></section>' : `<section class="card"><h2>عداد الزيارات</h2>
+      <div class="tiles">${tile(VS.visitors, 'زائر للمنصة')}${tile(VS.visits, 'إجمالي الزيارات')}${tile(VS.vToday, 'زيارات اليوم')}${tile(VS.v7, 'زيارات آخر 7 أيام')}${tile(VS.openers, 'شخص فتح مقياساً')}${tile(VS.opens, 'مرات فتح المقاييس')}${tile(VS.oToday, 'فتح مقياس اليوم')}${tile(A.results.length, 'مقياس مُنجز')}</div>
+      <h3>آخر 14 يوماً</h3><div class="vchart">${VS.days.map(x => `<div class="vcol" title="${x.d}: ${x.v} زيارة، ${x.o} فتح مقياس"><div class="vbars"><i style="height:${Math.round(x.v / vmx * 100)}%"></i><i class="o" style="height:${Math.round(x.o / vmx * 100)}%"></i></div><small>${x.d.slice(8)}/${x.d.slice(5, 7)}</small></div>`).join('')}</div>
+      <p class="vleg"><span><i></i> زيارات</span><span><i class="o"></i> فتح مقياس</span></p>
+      <h3>المقاييس الأكثر فتحاً</h3>${Object.entries(VS.perScale).sort((a, b) => b[1] - a[1]).slice(0, 12).map(([k, v]) => `<div class="hbar"><span>${esc((SCALES.find(s => s.id === k) || { name: k }).name)}</span><i style="width:${Math.round(v / omx * 100)}%"></i><b>${v}</b></div>`).join('') || '<p class="muted">لم يُفتح أي مقياس بعد.</p>'}
+      <p class="muted">الزيارة تُحسب مرة واحدة يومياً لكل متصفح، والزائر يُعرَّف برمز عشوائي على جهازه دون أي بيانات شخصية. زياراتك كمدير لا تُحسب.${VS.partial ? ' التفاصيل اليومية محسوبة من أحدث 5000 سجل.' : ''}</p></section>`;
     return shell(`<section class="card"><h1>لوحة الإدارة</h1>
       <div class="tiles">${tile(A.users.length, 'مستخدم')}${tile(SA.subs.filter(act).length, 'مشترك فعّال')}${tile(A.members.length, 'فرد أسرة')}${tile(A.results.length, 'مقياس مُنجز')}${tile(refer.length, 'نتيجة تحتاج مختصاً', 'warn')}${tile(urgent.length, 'تنبيه عاجل', 'danger')}</div></section>
+      ${visitBlock}
       ${subsBlock}
       <section class="card"><h2>حالات تحتاج متابعة</h2>${cases ? `<div class="tw"><table><tr><th>الشخص</th><th>المقياس</th><th>الدرجة</th><th>المستوى</th><th>التاريخ</th><th></th></tr>${cases}</table></div>` : '<p class="muted">لا توجد حالات.</p>'}</section>
       <section class="card"><h2>المستخدمون</h2><input name="q" placeholder="بحث بالاسم أو البريد" value="${esc(S.q)}">
@@ -547,7 +556,7 @@ root.addEventListener('click', async e => {
     else if (act === 'mdel') { await Store.deleteMember(id); S.members = S.members.filter(m => m.id !== id); if (S.personId === id) S.personId = ''; render(); }
     else if (act === 'directory') go('directory');
     else if (act === 'cat') { S.cat = id; render(); }
-    else if (act === 'intro') { const sc = SCALES.find(s => s.id === id), why = lockReason(sc, cur()); if (why) { S.info = why; return go('subscribe', true); } S.scale = sc; go('intro'); }
+    else if (act === 'intro') { const sc = SCALES.find(s => s.id === id), why = lockReason(sc, cur()); if (why) { S.info = why; return go('subscribe', true); } S.scale = sc; if (!S.user.isAdmin) Store.track('open', sc.id); go('intro'); }
     else if (act === 'subscribe') { S.scale = null; if (Store.live) S.myReqs = await Store.myPayReqs(S.user).catch(() => S.myReqs); go('subscribe'); }
     else if (act === 'country') { S.country = id; render(); }
     else if (act === 'subOn') { const cur0 = (S.subAdmin.subs.find(x => x.userId === id) || {}).until, until = await Store.activate(id, Number(b.dataset.m || 1), cur0);
@@ -585,7 +594,7 @@ root.addEventListener('click', async e => {
     else if (act === 'summary') { const p = cur(); S.sum = { name: p.self ? S.user.name : p.name, results: resultsOf(S.results, p.id), admin: false }; go('summary'); }
     else if (act === 'open') { S.result = (S.fromAdmin ? S.admin.results : S.results).find(r => r.id === id); S.scale = SCALES.find(s => s.id === S.result.scaleId); S.parentView = true; go('result'); }
     else if (act === 'del') { await Store.deleteResult(id); S.results = S.results.filter(r => r.id !== id); render(); }
-    else if (act === 'admin') { S.admin = await Store.adminData(); S.subAdmin = await Store.adminSubs().catch(() => ({ reqs: [], subs: [] })); S.settings = await Store.getSettings().catch(() => S.settings); S.fromAdmin = true; S.scale = null; go('admin'); }
+    else if (act === 'admin') { S.admin = await Store.adminData(); S.subAdmin = await Store.adminSubs().catch(() => ({ reqs: [], subs: [] })); S.settings = await Store.getSettings().catch(() => S.settings); S.visits = await Store.visitStats().catch(() => null); S.fromAdmin = true; S.scale = null; go('admin'); }
     else if (act === 'adminUser') { S.adminUser = id; go('adminUser'); }
     else if (act === 'asummary') { const u = S.admin.users.find(x => x.id === S.adminUser), m = S.admin.members.find(x => x.id === id);
       S.sum = { name: m ? m.name : (u ? u.name : ''), results: resultsOf(S.admin.results.filter(r => r.userId === S.adminUser), id || ''), admin: true }; go('summary'); }
@@ -629,6 +638,6 @@ function exportCsv() {
     try { history.replaceState(null, '', location.pathname); } catch (e) { /* لا شيء */ }
     return go('reset');
   }
-  try { const u = await Store.me(); if (u) await afterLogin(u); else render(); }
+  try { const u = await Store.me(); if (!u || !u.isAdmin) Store.track('visit'); if (u) await afterLogin(u); else render(); }
   catch (err) { S.msg = errText(err); render(); }
 })();

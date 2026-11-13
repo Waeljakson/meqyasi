@@ -13,6 +13,7 @@ window.APP_CONFIG = {
   settingsTableId: 'settings',                // إعدادات الدفع (يعدّلها المدير من اللوحة)
   payreqTableId: 'payreq',                    // طلبات الاشتراك وإثباتات الدفع
   subsTableId: 'subs',                        // الاشتراكات المفعّلة
+  visitsTableId: 'visits',                    // عداد الزيارات وفتح المقاييس (بلا بيانات شخصية)
   saveFunctionId: 'saveResult',               // دالة الخادم التي تحفظ النتائج وتطبّق الحد المجاني
   freeLimit: 2,                               // عدد المقاييس المجانية قبل الاشتراك
   disabledScales: [],                         // معرّفات مقاييس تُخفى من المنصة، مثل ['igds9','smfq']
