@@ -80,7 +80,7 @@ function shell(inner, opts = {}) {
     <footer class="no-print"><div class="fbrand">${LOGO}<b>${esc(cfg.appName)}</b></div>
       <p>هذه المنصة أداة فرز أولي ولا تقدم تشخيصاً. التشخيص والعلاج من اختصاص الأخصائي النفسي أو الطبيب.</p>
       <button class="link" data-act="privacy">الخصوصية وحماية البيانات</button>
-      <p class="copy">© ${YEAR} جميع الحقوق محفوظة · برمجة وتصميم: <b>محمد صلاح الدين الجمل</b></p></footer>`;
+      <p class="copy">© ${YEAR} جميع الحقوق محفوظة · برمجة وتصميم: <b>الدكتور وائل الجمل</b></p></footer>`;
 }
 const yearOptions = sel => { let o = ''; for (let i = YEAR - 3; i >= YEAR - 95; i--) o += `<option value="${i}" ${Number(sel) === i ? 'selected' : ''}>${i}</option>`; return o; };
 
