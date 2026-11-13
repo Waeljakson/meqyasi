@@ -12,9 +12,9 @@ const fmtScore = r => (Number.isInteger(r.total) ? r.total : r.total.toFixed(2))
 const LV = ['طبيعي', 'خفيف', 'متوسط', 'مرتفع'];
 const RELATIONS = ['ابن', 'ابنة', 'زوج', 'زوجة', 'أب', 'أم', 'أخ', 'أخت', 'آخر'];
 const CHEERS = ['رائع! واصل 🌟', 'أنت بطل! 💪', 'ممتاز، اقتربنا 🚀', 'أحسنت! نجمة جديدة ⭐', 'شجاع جداً 🦁'];
-const CATS = [{ id: 'mood', name: 'المشاعر والمزاج', icon: '💗' }, { id: 'digital', name: 'العادات الرقمية', icon: '🎮' }, { id: 'strength', name: 'العافية والقوة النفسية', icon: '🌟' }];
-const CATDESC = { mood: 'القلق والحزن والضغوط وما يرتبط بها', digital: 'الألعاب والجوال ووسائل التواصل', strength: 'نقاط قوتك: الرضا وتقدير الذات والصمود والدعم' };
-const catOf = s => s.domain === 'digital' ? 'digital' : s.positive ? 'strength' : 'mood';
+const CATS = [{ id: 'mood', name: 'المشاعر والمزاج', icon: '💗' }, { id: 'focus', name: 'الانتباه والدراسة', icon: '🎯' }, { id: 'digital', name: 'العادات الرقمية', icon: '🎮' }, { id: 'strength', name: 'العافية والقوة النفسية', icon: '🌟' }];
+const CATDESC = { mood: 'القلق والحزن والضغوط وما يرتبط بها', focus: 'نقص الانتباه وفرط الحركة وقلق الاختبار', digital: 'الألعاب والجوال ووسائل التواصل', strength: 'نقاط قوتك: الرضا وتقدير الذات والصمود والدعم' };
+const catOf = s => s.cat ? s.cat : s.domain === 'digital' ? 'digital' : s.positive ? 'strength' : 'mood';
 const HINTS = ['ما رأيك؟', 'أجب بصدق 😊', 'لا توجد إجابة خاطئة', 'خذ وقتك', 'أنا معك!'];
 
 // ---------- رسوم كرتونية (SVG أصلية) ----------
@@ -144,6 +144,7 @@ const V = {
         ${next && !child ? `<button class="nextup" data-act="intro" data-id="${next.id}"><small>مقترح الآن</small><b>${next.icon} ${esc(next.name)}</b><span>${next.minutes} دقائق · ابدأ ←</span></button>` : ''}</section>
       ${child ? '' : `<div class="tools no-print"><div class="tabs">${tabs}</div><label class="search"><span>🔍</span><input name="sq" placeholder="ابحث عن مقياس..." value="${esc(S.sq || '')}" aria-label="بحث"></label></div>`}
       ${sections || '<p class="card center muted">لا توجد مقاييس مطابقة للبحث.</p>'}
+      ${child ? '' : `<button class="dirlink no-print" data-act="directory"><span>🏥</span><div><b>اختبارات يطبقها المختص فقط</b><small>ستانفورد-بينيه، وكسلر، فاينلاند، كونرز، MMPI وغيرها: ما تقيسه ومتى تُطلب</small></div><i>←</i></button>`}
       <p class="center no-print"><button class="link" data-act="editProfile">تعديل بياناتي</button></p>`, { cls: 'wide' });
   },
   intro() {
@@ -287,6 +288,12 @@ const V = {
   }
 };
 
+V.directory = () => shell(`<section class="card"><h1>اختبارات يطبقها المختص فقط</h1>
+  <p>هذه الاختبارات غير متاحة على المنصة ولا على أي موقع موثوق، لثلاثة أسباب: حقوق نشرها محفوظة لناشريها وتُباع للمختصين المرخّصين فقط، وتُطبَّق فردياً وجهاً لوجه بأدوات ومواد خاصة ووقت محسوب، ونشر بنودها يفسد صلاحيتها لكل من يُختبر بها بعد ذلك.</p>
+  <p class="ref">إذا أوصى تقرير الإحالة بأحدها، اطلبه من مركز نفسي مرخّص أو من وحدة الخدمات الإرشادية، واصطحب تقرير المنصة.</p>
+  ${SPECIALIST_TESTS.map(g => `<h3>${g.g}</h3><div class="tw"><table class="res"><tr><th>الاختبار</th><th>العمر</th><th>ما يقيسه</th><th>متى يُطلب</th></tr>${g.items.map(r => `<tr><td><b>${r[0]}</b></td><td>${r[1]}</td><td>${r[2]}</td><td>${r[3]}</td></tr>`).join('')}</table></div>`).join('')}
+  <p class="note">الأعمار والمكونات من أدلة النسخ الأصلية؛ النسخ العربية المقننة قد تختلف في المدى العمري والمعايير.</p>
+  <p class="no-print"><button class="btn" data-act="home">رجوع</button></p></section>`, { cls: 'wide' });
 V.intake = function () {
   const p = cur(), k = S.intakes[p.id] || { impact: {}, stress: [] }, kid = ageOf(p) < 18;
   const sel = (name, list, val) => `<select name="${name}"><option value="">اختر</option>${list.map(x => `<option ${val === x ? 'selected' : ''}>${x}</option>`).join('')}</select>`;
@@ -469,6 +476,7 @@ root.addEventListener('click', async e => {
     else if (act === 'family') { S.scale = null; go('family'); }
     else if (act === 'familyReport') go('familyReport');
     else if (act === 'mdel') { await Store.deleteMember(id); S.members = S.members.filter(m => m.id !== id); if (S.personId === id) S.personId = ''; render(); }
+    else if (act === 'directory') go('directory');
     else if (act === 'cat') { S.cat = id; render(); }
     else if (act === 'intro') { S.scale = SCALES.find(s => s.id === id); go('intro'); }
     else if (act === 'start') { Store.progress.clear(); S.idx = 0; S.answers = []; S.t0 = Date.now(); go('question'); }
