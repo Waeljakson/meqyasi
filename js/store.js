@@ -2,12 +2,13 @@
 const Store = (() => {
   const cfg = window.APP_CONFIG;
   const live = !!(cfg.projectId && window.Appwrite);
-  let account, db, AW;
+  let account, db, fn, AW;
   if (live) {
     AW = window.Appwrite;
     const client = new AW.Client().setEndpoint(cfg.endpoint).setProject(cfg.projectId);
     account = new AW.Account(client);
     db = new AW.TablesDB(client);
+    fn = new AW.Functions(client);
   }
   const mem = {};
   const ls = {
@@ -89,10 +90,12 @@ const Store = (() => {
         const all = ls.get('results', []); r.id = 'r' + Date.now(); r.date = new Date().toISOString();
         all.unshift(r); ls.set('results', all); return r;
       }
-      const role = AW.Role.user(user.id);
-      const d = await db.createRow(cfg.databaseId, cfg.tableId, AW.ID.unique(), toDoc(r, user),
-        [AW.Permission.read(role), AW.Permission.delete(role)]);
-      return fromDoc(d);
+      // الحفظ عبر دالة الخادم: تتحقق من الاشتراك والحد المجاني ثم تنشئ الصف.
+      const ex = await fn.createExecution(cfg.saveFunctionId, JSON.stringify(toDoc(r, user)), false, '/', 'POST');
+      let out = {}; try { out = JSON.parse(ex.responseBody || '{}'); } catch (e) { out = {}; }
+      if (ex.responseStatusCode === 402) throw new Error(out.error === 'REPEAT' ? 'REPEAT' : 'LIMIT');
+      if (ex.responseStatusCode !== 200 || !out.row) throw new Error('تعذر حفظ النتيجة (' + (out.error || ex.responseStatusCode) + ')');
+      return fromDoc(out.row);
     },
     async listResults(user) {
       if (!live) return ls.get('results', []);

@@ -199,13 +199,13 @@ const V = {
         <div class="journey">${SCENE}<span class="goal">🏰</span><span class="walker" style="inset-inline-start:calc(${pct}% * .82)">${MASCOT}</span></div>
         <p class="meta">سؤال ${i + 1} من ${n}</p>
         <div class="ask"><div class="pic">${(s.pics && s.pics[i]) || s.icon}</div><div class="bubble">${esc(cheer)}</div></div>
-        <h2 class="qtext">${esc(it.t)}</h2><div class="opts kids">${btns}</div>
+        <h2 class="qtext">${esc(it.t)}</h2><div class="opts kids">${btns}</div>${S.msg ? `<p class="err">${esc(S.msg.replace('اضغط إنهاء', 'اختر إجابتك'))}</p>` : ''}
         <div class="qnav"><button class="btn" data-act="back">${i === 0 ? 'إلغاء' : 'السابق'}</button></div></section>`);
     }
     return shell(`<section class="card qcard"><div class="bar"><i style="width:${pct}%"></i></div>
       <div class="qhead"><span class="qico">${s.icon}</span><span class="meta">سؤال ${i + 1} من ${n}</span></div>
       <p class="tf">${esc(s.timeframe)}</p><h2 class="qtext">${esc(it.t)}</h2>
-      <div class="opts ${opts.length > 4 ? 'many' : ''}">${btns}</div>
+      <div class="opts ${opts.length > 4 ? 'many' : ''}">${btns}</div>${S.msg ? `<p class="err">${esc(S.msg.replace('اضغط إنهاء', 'اختر إجابتك'))}</p>` : ''}
       <div class="qnav"><button class="btn" data-act="back">${i === 0 ? 'إلغاء' : 'السابق'}</button></div></section>`);
   },
   result() {
@@ -605,7 +605,12 @@ async function finish() {
   const person = cur(), sc = scoreScale(S.scale, S.answers, person.gender);
   const r = Object.assign(sc, { scaleId: S.scale.id, scaleName: S.scale.name, answers: S.answers.slice(), age: ageOf(person), gender: person.gender,
     memberId: person.id, memberName: person.self ? '' : person.name, userName: S.user.name, secs: S.t0 ? Math.round((Date.now() - S.t0) / 1000) : 0, date: new Date().toISOString() });
-  try { S.result = await Store.saveResult(S.user, r); } catch (err) { S.result = r; }
+  try { S.result = await Store.saveResult(S.user, r); }
+  catch (err) {
+    if (err.message === 'LIMIT' || err.message === 'REPEAT') { S.results = await Store.listResults(S.user).catch(() => S.results); S.scale = null;
+      S.info = err.message === 'REPEAT' ? 'في النسخة المجانية يُجرى كل مقياس مرة واحدة. اشترك لإعادة القياس ومتابعة التطور.' : 'استخدمت المقاييس المجانية (' + cfg.freeLimit + '). اشترك لاستخدام جميع المقاييس دون حد.'; return go('subscribe', true); }
+    S.msg = 'لم تُحفظ النتيجة. تحقق من الاتصال ثم اضغط إنهاء مرة أخرى. ' + (err.message || ''); S.idx = Math.max(0, S.scale.items.length - 1); return go('question', true);
+  }
   S.results.unshift(S.result); S.parentView = false; go('result');
 }
 function exportCsv() {
