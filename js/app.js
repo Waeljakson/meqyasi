@@ -27,6 +27,12 @@ const FACES = [
 const SCENE = `<svg class="scene" viewBox="0 0 600 120" preserveAspectRatio="none" aria-hidden="true"><circle cx="70" cy="34" r="22" fill="#ffd166"/><path d="M0 120V84q90-44 190-8t200-14 210 10v58z" fill="#95d5b2"/><path d="M0 120V100q120-26 260-6t340-10v36z" fill="#74c69d"/></svg>
   <span class="cloud c1"></span><span class="cloud c2"></span>`;
 const HERO = `<svg class="heroart" viewBox="0 0 220 120" aria-hidden="true"><circle cx="60" cy="60" r="44" fill="var(--pri)" opacity=".15"/><circle cx="150" cy="50" r="30" fill="var(--pri)" opacity=".25"/><path d="M110 96c-26-18-40-32-40-48a20 20 0 0 1 40-6 20 20 0 0 1 40 6c0 16-14 30-40 48z" fill="var(--pri)"/><path d="M84 52h14l6-12 8 24 6-12h18" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+const LOGO = `<svg class="logo" viewBox="0 0 40 40" aria-hidden="true"><defs><linearGradient id="lg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="var(--pri)"/><stop offset="1" stop-color="var(--pri2)"/></linearGradient></defs><rect width="40" height="40" rx="12" fill="url(#lg)"/><path d="M20 31c-7-5-11-9-11-13.500a5.500 5.500 0 0 1 11-1.500 5.500 5.500 0 0 1 11 1.500c0 4.500-4 8.500-11 13.500z" fill="#fff"/><path d="M12.500 19h4l1.800-3.500 2.600 7 1.800-3.500h4.800" fill="none" stroke="url(#lg)" stroke-width="1.800" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+const FAMILYART = `<svg class="famart" viewBox="0 0 360 260" aria-hidden="true"><ellipse cx="180" cy="236" rx="150" ry="16" fill="#0001"/><circle cx="70" cy="60" r="38" fill="#fff" opacity=".18"/><circle cx="300" cy="44" r="24" fill="#fff" opacity=".22"/><circle cx="318" cy="150" r="12" fill="#fff" opacity=".3"/>
+  <g><rect x="92" y="112" width="64" height="118" rx="30" fill="#fff" opacity=".95"/><circle cx="124" cy="84" r="30" fill="#ffd9b3"/><path d="M96 78q28-40 56 0v-8q-28-34-56 0z" fill="#3b2f2f"/><circle cx="114" cy="86" r="3.500" fill="#3b2f2f"/><circle cx="134" cy="86" r="3.500" fill="#3b2f2f"/><path d="M114 97q10 8 20 0" fill="none" stroke="#3b2f2f" stroke-width="3" stroke-linecap="round"/></g>
+  <g><rect x="206" y="122" width="60" height="108" rx="28" fill="#ffe3ec"/><circle cx="236" cy="96" r="28" fill="#ffd9b3"/><path d="M206 100q-4-46 30-46t30 46q-8-30-30-30t-30 30z" fill="#7c4a2d"/><circle cx="227" cy="98" r="3.500" fill="#3b2f2f"/><circle cx="245" cy="98" r="3.500" fill="#3b2f2f"/><path d="M227 108q9 7 18 0" fill="none" stroke="#3b2f2f" stroke-width="3" stroke-linecap="round"/></g>
+  <g><rect x="156" y="166" width="48" height="64" rx="22" fill="#ffd166"/><circle cx="180" cy="146" r="23" fill="#ffd9b3"/><path d="M158 142q22-30 44 0-22-12-44 0z" fill="#3b2f2f"/><circle cx="172" cy="148" r="3" fill="#3b2f2f"/><circle cx="188" cy="148" r="3" fill="#3b2f2f"/><path d="M172 157q8 7 16 0" fill="none" stroke="#3b2f2f" stroke-width="3" stroke-linecap="round"/></g>
+  <path d="M180 44c-10-7-16-13-16-20a8 8 0 0 1 16-2 8 8 0 0 1 16 2c0 7-6 13-16 20z" fill="#ff7a8a"/></svg>`;
 const confetti = () => `<div class="confetti" aria-hidden="true">${Array.from({ length: 24 }, (_, i) => `<i style="--x:${(i * 41) % 100}%;--d:${(i % 7) * 0.25}s;--c:${['#ff7a59', '#ffd166', '#4cc9f0', '#95d5b2', '#c77dff'][i % 5]}"></i>`).join('')}</div>`;
 
 // ---------- الأشخاص ----------
@@ -45,15 +51,17 @@ function setTheme() {
   }
   document.body.className = 'theme-' + st;
 }
+function navOn(a) { const v = S.view; return a === 'home' ? ['home', 'intro', 'question', 'result'].includes(v) && !S.fromAdmin : a === 'family' ? v.startsWith('family') : a === 'history' ? ['history', 'summary'].includes(v) && !(S.sum && S.sum.admin && v === 'summary') : a === 'admin' ? v.startsWith('admin') : false; }
 function go(view, keep) { S.view = view; if (!keep) { S.msg = ''; S.info = ''; } render(); window.scrollTo(0, 0); }
 function shell(inner, opts = {}) {
   const u = S.user, ready = u && u.profile.birthYear;
-  return `<header class="top no-print"><div class="brand"><span class="logo">🧠</span>${esc(cfg.appName)}</div>
-    ${ready ? `<nav><button data-act="home">الرئيسية</button><button data-act="family">أسرتي</button><button data-act="history">السجل</button>${u.isAdmin ? '<button data-act="admin">الإدارة</button>' : ''}<button data-act="logout">خروج</button></nav>` : ''}</header>
+  return `<header class="top no-print"><div class="brand">${LOGO}<span>${esc(cfg.appName)}</span></div>
+    ${ready ? `<nav>${[['home', '🏠', 'الرئيسية'], ['family', '👨‍👩‍👧', 'أسرتي'], ['history', '📊', 'السجل']].concat(u.isAdmin ? [['admin', '🛡️', 'الإدارة']] : []).concat([['logout', '🚪', 'خروج']]).map(([a, i, t]) => `<button data-act="${a}" class="${navOn(a) ? 'on' : ''}"><i>${i}</i><span>${t}</span></button>`).join('')}</nav>` : ''}</header>
     ${Store.live ? '' : '<div class="demo no-print">وضع تجريبي: البيانات تُحفظ على هذا الجهاز فقط حتى يُربط Appwrite.</div>'}
     <main class="${opts.cls || ''}">${inner}</main>
-    <footer class="no-print">هذه المنصة أداة فرز أولي ولا تقدم تشخيصاً. التشخيص والعلاج من اختصاص الأخصائي النفسي أو الطبيب.
-      <br><button class="link" data-act="privacy">الخصوصية وحماية البيانات</button></footer>`;
+    <footer class="no-print"><div class="fbrand">${LOGO}<b>${esc(cfg.appName)}</b></div>
+      <p>هذه المنصة أداة فرز أولي ولا تقدم تشخيصاً. التشخيص والعلاج من اختصاص الأخصائي النفسي أو الطبيب.</p>
+      <button class="link" data-act="privacy">الخصوصية وحماية البيانات</button></footer>`;
 }
 const yearOptions = sel => { let o = ''; for (let i = YEAR - 3; i >= YEAR - 95; i--) o += `<option value="${i}" ${Number(sel) === i ? 'selected' : ''}>${i}</option>`; return o; };
 
@@ -61,8 +69,15 @@ const yearOptions = sel => { let o = ''; for (let i = YEAR - 3; i >= YEAR - 95; 
 const V = {
   auth() {
     const su = S.authTab === 'signup';
-    return shell(`<section class="card narrow center">${HERO}<h1>${su ? 'حساب جديد' : 'تسجيل الدخول'}</h1>
-      <p class="muted">مقاييس نفسية لك ولأفراد أسرتك، بنتيجة وتقرير فوري.</p>
+    const feat = (i, t, d) => `<li><span>${i}</span><div><b>${t}</b><small>${d}</small></div></li>`;
+    return shell(`<section class="landing"><div class="pitch">
+        <span class="tag">صحتك النفسية تبدأ بخطوة</span>
+        <h1>اطمئن على نفسك وعلى أسرتك في دقائق</h1>
+        <p>مقاييس نفسية معروفة عالمياً بواجهة تناسب كل عمر، ونتيجة فورية مع نصيحة وخطة دعم وتقرير جاهز للطباعة.</p>
+        <ul class="feats">${feat('🧒', 'واجهة كرتونية للأطفال', 'رحلة ممتعة بوجوه ورسوم بدل الأسئلة الجافة')}${feat('👨‍👩‍👧', 'سجل أسري واحد', 'أضف أبناءك وزوجك وتابع الجميع من حسابك')}${feat('📋', 'تقرير وخطة دعم', 'درجة وتصنيف ونصيحة واضحة متى تراجع المختص')}</ul>
+        <div class="stats"><div><b>${SCALES.length}</b><span>مقياساً</span></div><div><b>3</b><span>واجهات عمرية</span></div><div><b>2–10</b><span>دقائق للمقياس</span></div></div>
+        ${FAMILYART}</div>
+      <div class="card authcard"><h2>${su ? 'حساب جديد' : 'تسجيل الدخول'}</h2>
       <form data-form="auth" class="start">
         ${su ? '<label>الاسم<input name="name" required maxlength="60" autocomplete="name"></label>' : ''}
         <label>البريد الإلكتروني<input name="email" type="email" required autocomplete="email" dir="ltr"></label>
@@ -71,7 +86,12 @@ const V = {
         <button class="btn primary" type="submit">${su ? 'إنشاء الحساب' : 'دخول'}</button>
       </form>
       ${su ? '' : '<button class="link" data-act="forgot">نسيت كلمة المرور؟</button><br>'}
-      <button class="link" data-act="tab">${su ? 'لدي حساب بالفعل' : 'ليس لدي حساب — إنشاء حساب جديد'}</button></section>`);
+      <button class="link" data-act="tab">${su ? 'لدي حساب بالفعل' : 'ليس لدي حساب — إنشاء حساب جديد'}</button></div></section>
+      <section class="how"><h2>كيف تعمل المنصة؟</h2><div class="steps">
+        <div><i>1</i><b>أنشئ حسابك</b><p>وأضف أفراد أسرتك إن أردت.</p></div>
+        <div><i>2</i><b>اختر المقياس</b><p>تظهر لك المقاييس المناسبة للعمر فقط.</p></div>
+        <div><i>3</i><b>أجب بصدق</b><p>أسئلة قصيرة، سؤال في كل شاشة.</p></div>
+        <div><i>4</i><b>استلم تقريرك</b><p>نتيجة ونصيحة وخطة دعم فوراً.</p></div></div></section>`, { cls: 'wide' });
   },
   forgot: () => shell(`<section class="card narrow"><h1>استعادة كلمة المرور</h1><p class="muted">اكتب بريدك وسنرسل لك رابطاً لتعيين كلمة مرور جديدة.</p>
     <form data-form="forgot"><label>البريد الإلكتروني<input name="email" type="email" required dir="ltr"></label>
