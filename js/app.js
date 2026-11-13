@@ -1,7 +1,7 @@
 // واجهة المنصة (صفحة واحدة).
 const cfg = window.APP_CONFIG;
 const root = document.getElementById('app');
-const S = { user: null, members: [], personId: '', scale: null, idx: 0, answers: [], result: null, results: [], admin: null, adminUser: null,
+const S = { user: null, intakes: {}, kase: null, members: [], personId: '', scale: null, idx: 0, answers: [], result: null, results: [], admin: null, adminUser: null,
   q: '', info: '', sum: null, view: 'auth', authTab: 'login', msg: '' };
 
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -48,11 +48,12 @@ function setTheme() {
   if (S.user && S.user.profile.birthYear) {
     st = stageOf(ageOf(cur()));
     if (S.scale && S.scale.respondent === 'parent' && ['intro', 'question', 'result'].includes(S.view)) st = 'adult';
-    if (['admin', 'adminUser', 'family', 'familyReport', 'privacy', 'history', 'summary'].includes(S.view) || (S.view === 'result' && (S.parentView || S.fromAdmin))) st = stageOf(ageOf(selfPerson()));
+    if (['admin', 'adminUser', 'family', 'familyReport', 'privacy', 'history', 'summary', 'intake', 'caseReport'].includes(S.view) || (S.view === 'result' && (S.parentView || S.fromAdmin))) st = stageOf(ageOf(selfPerson()));
   }
   document.body.className = 'theme-' + st;
 }
-function navOn(a) { const v = S.view; return a === 'home' ? ['home', 'intro', 'question', 'result'].includes(v) && !S.fromAdmin : a === 'family' ? v.startsWith('family') : a === 'history' ? ['history', 'summary'].includes(v) && !(S.sum && S.sum.admin && v === 'summary') : a === 'admin' ? v.startsWith('admin') : false; }
+function formMode() { return S.scale && (S.scale.respondent === 'parent' || ageOf(cur()) >= 16); }
+function navOn(a) { const v = S.view; return a === 'home' ? ['home', 'intro', 'question', 'result'].includes(v) && !S.fromAdmin : a === 'family' ? v.startsWith('family') : a === 'history' ? ['history', 'summary', 'intake', 'caseReport'].includes(v) && !(S.kase && S.kase.admin && v === 'caseReport') && !(S.sum && S.sum.admin && v === 'summary') : a === 'admin' ? v.startsWith('admin') : false; }
 function go(view, keep) { S.view = view; if (!keep) { S.msg = ''; S.info = ''; } render(); window.scrollTo(0, 0); }
 function shell(inner, opts = {}) {
   const u = S.user, ready = u && u.profile.birthYear;
@@ -152,13 +153,26 @@ const V = {
     else if (!person.self && ageOf(person) >= 18) note = `هذا المقياس يجيب عنه ${esc(person.name)} بنفسه وبعلمه وموافقته.`;
     else if (!person.self) note = `أعطِ الجهاز لـ${esc(person.name)} ليجيب بنفسه، وكن بجانبه دون أن توجّه إجاباته.`;
     return shell(`<section class="card narrow center"><div class="bigico">${s.icon}</div><h1>${esc(s.name)}</h1>
-      <p class="muted">${esc(s.formal)}</p><p>${esc(s.timeframe)}</p>${note ? `<p class="ref">${note}</p>` : ''}
-      <p class="meta">${s.items.length} سؤالاً · نحو ${s.minutes} دقائق</p>
+      <p class="muted">${esc(s.formal)}</p>
+      ${stageOf(ageOf(person)) === 'child' && s.respondent !== 'parent' ? `<p>${esc(s.timeframe)}</p>` : `<table class="spec"><tr><th>المجال</th><td>${esc(s.measures)}</td></tr><tr><th>عدد البنود</th><td>${s.items.length}</td></tr><tr><th>المجيب</th><td>${s.respondent === 'parent' ? 'ولي الأمر عن الطفل' : 'تقرير ذاتي'}</td></tr><tr><th>زمن التطبيق</th><td>نحو ${s.minutes} دقائق</td></tr><tr><th>الحد الفاصل</th><td>${esc((CLIN[s.id] || {}).cut || '—')}</td></tr><tr><th>التقنين العربي</th><td>${esc((CLIN[s.id] || {}).psy || '—')}</td></tr></table>
+      <div class="instr"><b>التعليمات</b><p>${esc(s.timeframe)}</p><p>أجب عن جميع البنود بما يصف حالتك فعلاً، لا بما تتمنى. لا تتوقف طويلاً عند أي بند.</p></div>`}
+      ${note ? `<p class="ref">${note}</p>` : ''}
       ${Store.progress.get(S.user.id, key) ? '<button class="btn primary" data-act="resume">متابعة من حيث توقفت</button> <button class="btn" data-act="start">بدء من جديد</button>' : '<button class="btn primary" data-act="start">ابدأ</button>'} <button class="btn" data-act="home">رجوع</button></section>`);
   },
   question() {
     const s = S.scale, i = S.idx, it = s.items[i], opts = it.opts || s.options, n = s.items.length;
     const child = document.body.classList.contains('theme-child'), pct = Math.round((i / n) * 100);
+    if (formMode()) {
+      const done = S.answers.filter(x => x != null).length;
+      const rows = s.items.map((q, j) => { const o = q.opts || s.options;
+        return `<div class="frow ${S.answers[j] != null ? 'ans' : ''}" id="q${j}"><div class="fq"><span class="fn">${j + 1}</span><span>${esc(q.t)}</span></div>
+          <div class="fopts n${o.length}">${o.map((x, k) => `<button type="button" class="fo ${S.answers[j] === k ? 'sel' : ''}" data-act="pick" data-i="${j}" data-k="${k}">${esc(x.t)}</button>`).join('')}</div></div>`; }).join('');
+      return shell(`<section class="card clinform"><div class="fhead"><div><h1>${esc(s.formal)}</h1><p class="muted">${esc(s.timeframe)}</p></div><span class="qico">${s.icon}</span></div>
+        <div class="fsticky"><div class="bar"><i id="fbar" style="width:${Math.round(done / n * 100)}%"></i></div><span id="fcount">${done} / ${n}</span></div>
+        ${rows}
+        ${S.msg ? `<p class="err">${esc(S.msg)}</p>` : ''}
+        <div class="qnav"><button class="btn primary" data-act="submitForm">إنهاء وعرض النتيجة</button> <button class="btn" data-act="home">إلغاء</button></div></section>`);
+    }
     const kidFaces = child && opts.length === 3 && opts[0].e;
     const btns = opts.map((o, k) => `<button class="opt ${S.answers[i] === k ? 'sel' : ''} ${kidFaces ? 'kid f' + k : ''}" data-act="answer" data-k="${k}">${kidFaces ? FACES[k] : `<span class="dot">${k + 1}</span>`}<span>${esc(o.t)}</span></button>`).join('');
     if (child) {
@@ -183,7 +197,7 @@ const V = {
         <div class="medal">🏅</div><p>شكراً لأنك أجبت بصدق. أنت شجاع!</p><p class="muted">اطلب الآن من والدك أو والدتك أو المرشد أن يشاهد النتيجة معك.</p>
         <button class="btn primary" data-act="parent">عرض النتيجة لولي الأمر</button> <button class="btn" data-act="home">الرئيسية</button></section>`);
     }
-    return shell(reportBody(r, s, r.memberName || r.userName || S.user.name) + `<p class="center no-print"><button class="btn primary" data-act="print">طباعة / حفظ PDF</button> <button class="btn" data-act="${S.fromAdmin ? 'admin' : 'home'}">${S.fromAdmin ? 'رجوع للوحة' : 'الرئيسية'}</button></p>`, { cls: 'report' });
+    return shell(reportBody(r, s, r.memberName || r.userName || S.user.name) + `<p class="center no-print"><button class="btn primary" data-act="print">طباعة / حفظ PDF</button> ${S.fromAdmin ? '' : '<button class="btn" data-act="case">تقرير الإحالة للمختص</button> '}<button class="btn" data-act="${S.fromAdmin ? 'admin' : 'home'}">${S.fromAdmin ? 'رجوع للوحة' : 'الرئيسية'}</button></p>`, { cls: 'report' });
   },
   history() {
     const person = cur(), mine = resultsOf(S.results, person.id);
@@ -191,7 +205,8 @@ const V = {
       <span class="lvl l${r.level}"></span><button class="btn sm" data-act="open" data-id="${r.id}">التقرير</button><button class="btn sm ghost" data-act="del" data-id="${r.id}">حذف</button></li>`).join('');
     const chips = people().map(p => `<button class="pchip ${p.id === person.id ? 'on' : ''}" data-act="hperson" data-id="${p.id}">${esc(p.self ? 'أنا' : p.name)}</button>`).join('');
     return shell(`<div class="people no-print">${chips}</div><section class="card"><h1>سجل ${person.self ? 'نتائجي' : esc(person.name)}</h1>
-      ${rows ? `<p><button class="btn primary" data-act="summary">التقرير الشامل</button></p>${trends(mine)}<ul class="hist">${rows}</ul>` : '<p class="muted">لا توجد مقاييس منجزة بعد.</p>'}</section>`);
+      <p class="acts"><button class="btn" data-act="intake">📝 تاريخ الحالة ${S.intakes[person.id] ? '(مُدخل)' : '(غير مُدخل)'}</button>${rows ? ' <button class="btn primary" data-act="case">📄 تقرير الإحالة للمختص</button> <button class="btn" data-act="summary">ملخص مبسّط للأسرة</button>' : ''}</p>
+      ${rows ? `${trends(mine)}<ul class="hist">${rows}</ul>` : '<p class="muted">لا توجد مقاييس منجزة بعد.</p>'}</section>`);
   },
   family() {
     const rows = S.members.map(m => { const rs = resultsOf(S.results, m.id), top = rs.length ? Math.max(...rs.map(r => r.level)) : -1;
@@ -226,7 +241,7 @@ const V = {
       <p class="center no-print"><button class="btn primary" data-act="print">طباعة / حفظ PDF</button> <button class="btn" data-act="${c.admin ? 'admin' : 'history'}">رجوع</button></p>`, { cls: 'report' });
   },
   privacy: () => shell(`<section class="card"><h1>الخصوصية وحماية البيانات</h1>
-    <h3>ما الذي نحفظه؟</h3><ul><li>الاسم والبريد الإلكتروني وسنة الميلاد والجنس.</li><li>أفراد الأسرة الذين تضيفهم: الاسم وصلة القرابة وسنة الميلاد والجنس.</li><li>الإجابات والدرجات في كل مقياس وتاريخ إجرائه، لك ولأفراد أسرتك.</li></ul>
+    <h3>ما الذي نحفظه؟</h3><ul><li>الاسم والبريد الإلكتروني وسنة الميلاد والجنس.</li><li>أفراد الأسرة الذين تضيفهم: الاسم وصلة القرابة وسنة الميلاد والجنس.</li><li>الإجابات والدرجات في كل مقياس وتاريخ إجرائه، لك ولأفراد أسرتك.</li><li>استمارة تاريخ الحالة إن عبّأتها: الشكوى ومدتها وتأثيرها، والأدوية والحالات الصحية والتاريخ الأسري. كلها اختيارية.</li></ul>
     <h3>من يطّلع عليه؟</h3><ul><li>صاحب الحساب: يرى نتائجه ونتائج الأفراد الذين أضافهم.</li><li>مختص المنصة (مدير النظام): يطّلع على بيانات ونتائج المستخدمين وأفراد أسرهم بغرض المتابعة والإرشاد فقط.</li><li>لا تُشارك البيانات مع أي جهة أخرى ولا تُستخدم للإعلانات.</li></ul>
     <h3>أين تُحفظ؟</h3><p>في قاعدة بيانات المنصة لدى خدمة Appwrite السحابية. كلمة المرور لا يراها أحد، ولا مدير النظام.</p>
     <h3>حقوقك</h3><ul><li>حذف أي نتيجة أو أي فرد من حسابك في أي وقت.</li><li>طلب حذف حسابك وكل بياناتك بالتواصل مع إدارة المنصة.</li></ul>
@@ -263,13 +278,79 @@ const V = {
     const blocks = persons.map(p => { const rs = resultsOf(all, p.id);
       const rows = rs.map(r => `<li><div><b>${esc(r.scaleName)}</b><small>${fmtDate(r.date)} · ${fmtScore(r)} · ${esc(r.band)}</small></div>
         <span class="lvl l${r.level}"></span><button class="btn sm" data-act="open" data-id="${r.id}">التقرير</button><button class="btn sm ghost" data-act="adel" data-id="${r.id}">حذف</button></li>`).join('');
-      return `<h3>${esc(p.name)} <small class="muted">(${esc(p.rel)})</small></h3>${rows ? `<p><button class="btn sm" data-act="asummary" data-id="${p.id}">التقرير الشامل</button></p>${trends(rs)}<ul class="hist">${rows}</ul>` : '<p class="muted">لا توجد مقاييس.</p>'}`; }).join('');
+      return `<h3>${esc(p.name)} <small class="muted">(${esc(p.rel)})</small></h3>${rows ? `<p><button class="btn sm primary" data-act="acase" data-id="${p.id}">تقرير الإحالة</button> <button class="btn sm" data-act="asummary" data-id="${p.id}">ملخص مبسّط</button></p>${trends(rs)}<ul class="hist">${rows}</ul>` : '<p class="muted">لا توجد مقاييس.</p>'}`; }).join('');
     return shell(`<section class="card"><h1>${esc(u.name)}</h1><p class="muted" dir="ltr">${esc(u.email)}</p>${blocks}
       <h3>ملاحظات المتابعة</h3>
       <form data-form="note"><label>ملاحظة جديدة (يراها المدير فقط)<input name="text" required maxlength="900"></label><button class="btn" type="submit">إضافة</button></form>
       <ul class="hist">${(A.notes || []).filter(n => n.userId === S.adminUser).map(n => `<li><div>${esc(n.text)}<small>${fmtDate(n.date)} · ${esc(n.author)}</small></div><button class="btn sm ghost" data-act="ndel" data-id="${n.id}">حذف</button></li>`).join('') || '<li class="muted">لا توجد ملاحظات.</li>'}</ul>
       <p><button class="btn" data-act="admin">رجوع للوحة</button></p></section>`);
   }
+};
+
+V.intake = function () {
+  const p = cur(), k = S.intakes[p.id] || { impact: {}, stress: [] }, kid = ageOf(p) < 18;
+  const sel = (name, list, val) => `<select name="${name}"><option value="">اختر</option>${list.map(x => `<option ${val === x ? 'selected' : ''}>${x}</option>`).join('')}</select>`;
+  return shell(`<section class="card"><h1>استمارة تاريخ الحالة</h1><p class="muted">${esc(p.self ? S.user.name : p.name)} · تُضاف هذه البيانات إلى تقرير الإحالة ليستفيد منها المختص. كل الحقول اختيارية.</p>
+    <form data-form="intake" class="intake">
+      <label>سبب طلب التقييم (الشكوى الرئيسية بكلماتك)<textarea name="complaint" rows="3" maxlength="800">${esc(k.complaint || '')}</textarea></label>
+      <div class="two"><label>منذ متى؟${sel('duration', INTAKE.duration, k.duration)}</label><label>كيف بدأت؟${sel('onset', INTAKE.onset, k.onset)}</label></div>
+      <fieldset><legend>إلى أي درجة تأثرت الجوانب التالية؟</legend>${INTAKE.impact.map(([key, name]) => `<div class="imp"><span>${name}</span><span class="seg">${INTAKE.impactLv.map((t, i) => `<label><input type="radio" name="imp_${key}" value="${i}" ${(k.impact[key] || 0) === i ? 'checked' : ''}><i>${t}</i></label>`).join('')}</span></div>`).join('')}</fieldset>
+      <fieldset><legend>ضغوط حالية</legend><div class="chk">${INTAKE.stress.map(t => `<label><input type="checkbox" name="stress" value="${t}" ${(k.stress || []).includes(t) ? 'checked' : ''}><i>${t}</i></label>`).join('')}</div></fieldset>
+      <div class="two"><label>مراجعة نفسية سابقة؟${sel('prev', INTAKE.yn.slice(0, 2), k.prev)}</label><label>تاريخ أسري لاضطرابات نفسية؟${sel('famhx', INTAKE.yn, k.famhx)}</label></div>
+      <label>تفاصيل المراجعة السابقة أو التشخيص إن وُجد<input name="prevNote" maxlength="300" value="${esc(k.prevNote || '')}"></label>
+      <div class="two"><label>أدوية حالية<input name="meds" maxlength="300" value="${esc(k.meds || '')}"></label><label>أمراض مزمنة أو حالات صحية<input name="medical" maxlength="300" value="${esc(k.medical || '')}"></label></div>
+      ${kid ? `<label>الأداء الدراسي حالياً${sel('school', ['ممتاز', 'جيد', 'متوسط', 'متراجع عن السابق'], k.school)}</label>` : ''}
+      <label>ملاحظات أخرى<textarea name="notes" rows="2" maxlength="600">${esc(k.notes || '')}</textarea></label>
+      ${S.msg ? `<p class="err">${esc(S.msg)}</p>` : ''}<button class="btn primary" type="submit">حفظ</button> <button class="btn" type="button" data-act="history">رجوع</button></form></section>`);
+};
+V.caseReport = function () {
+  const c = S.kase, groups = byScale(c.results), last = groups.map(l => l[l.length - 1]).sort((a, b) => b.level - a.level);
+  const top = last.length ? Math.max(...last.map(r => r.level)) : 0, urgent = last.some(r => r.urgent), k = c.intake;
+  const sc = id => SCALES.find(x => x.id === id), ref = referralLevel(top, urgent);
+  const elevated = last.filter(r => r.level >= 1 && !sc(r.scaleId).positive), strengths = last.filter(r => sc(r.scaleId).positive);
+  const domains = last.filter(r => r.level >= 1).map(r => sc(r.scaleId).domain);
+  const tools = last.map(r => { const s = sc(r.scaleId), v = validity(s, r);
+    return `<tr><td><b>${esc(s.formal)}</b></td><td>${s.respondent === 'parent' ? 'ولي الأمر' : 'ذاتي'}</td><td>${fmtDate(r.date)}</td><td class="num2">${Number.isInteger(r.total) ? r.total : r.total.toFixed(2)} / ${r.max}</td><td>${esc((CLIN[s.id] || {}).cut || '—')}</td><td><span class="chip l${r.level}">${esc(r.band.length > 34 ? LV[r.level] : r.band)}</span></td><td class="${v.ok ? '' : 'warn'}">${v.text}</td></tr>`; }).join('');
+  const detail = elevated.map(r => { const s = sc(r.scaleId), ti = topItems(s, r), cl = CLIN[s.id] || {};
+    const subs = r.subs.length ? `<table class="mini"><tr><th>البُعد الفرعي</th><th>الدرجة</th><th>التصنيف</th></tr>${r.subs.map(x => `<tr><td>${esc(x.name)}</td><td>${x.score}</td><td>${esc(x.label || '—')}</td></tr>`).join('')}</table>` : '';
+    const l = byScale(c.results).find(g => g[0].scaleId === r.scaleId);
+    return `<div class="cblock"><h4>${esc(s.formal)} <span class="chip l${r.level}">${fmtScore(r)}</span></h4>${subs}
+      ${ti.length ? `<p class="lbl">البنود الأعلى استجابة (${ti.length} من ${s.items.length}):</p><ul class="items">${ti.map(x => `<li><span class="fn">${x.n}</span>${esc(x.t)} <em>${esc(x.a)}</em></li>`).join('')}</ul>` : '<p class="muted">لا توجد بنود في النصف الأعلى من المدى.</p>'}
+      ${l.length > 1 ? `<p class="lbl">القياسات المتكررة: ${l.map(x => x.total).join(' ← ')} ${spark(l)}</p>` : ''}
+      <p class="psy">${esc(cl.psy || '')}</p></div>`; }).join('');
+  const dx = [...new Set(elevated.filter(r => r.level >= 2).flatMap(r => (CLIN[r.scaleId] || {}).dx || []))];
+  const more = [...new Set(elevated.filter(r => r.level >= 2).flatMap(r => (CLIN[r.scaleId] || {}).more || []))];
+  const impact = k ? INTAKE.impact.filter(([key]) => (k.impact[key] || 0) > 0).map(([key, name]) => `${name}: ${INTAKE.impactLv[k.impact[key]]}`) : [];
+  const imp = [];
+  if (!last.length) imp.push('لم تُطبَّق مقاييس بعد.');
+  else {
+    if (elevated.filter(r => r.level >= 2).length) imp.push('تشير نتائج الفرز إلى مؤشرات مرتفعة في: ' + elevated.filter(r => r.level >= 2).map(r => esc(sc(r.scaleId).measures) + ' (' + esc(r.band.length > 34 ? LV[r.level] : r.band) + ')').join('، ') + '.');
+    if (elevated.filter(r => r.level === 1).length) imp.push('مؤشرات خفيفة في: ' + elevated.filter(r => r.level === 1).map(r => esc(sc(r.scaleId).measures)).join('، ') + '.');
+    if (!elevated.length) imp.push('لم تظهر مؤشرات مرتفعة في المقاييس المطبقة.');
+    if (k && impact.length) imp.push('يذكر المفحوص أو ولي أمره تأثراً وظيفياً في: ' + impact.map(esc).join('، ') + '.');
+    if (k && k.duration) imp.push('مدة الشكوى: ' + esc(k.duration) + (k.onset ? '، وبدايتها ' + esc(k.onset) : '') + '.');
+    const low = strengths.filter(r => r.level >= 1), ok = strengths.filter(r => r.level === 0);
+    if (ok.length) imp.push('عوامل وقائية ظاهرة: ' + ok.map(r => esc(sc(r.scaleId).measures)).join('، ') + '.');
+    if (low.length) imp.push('عوامل وقائية منخفضة: ' + low.map(r => esc(sc(r.scaleId).measures)).join('، ') + '.');
+    if (last.some(r => !validity(sc(r.scaleId), r).ok)) imp.push('توجد ملاحظة على صلاحية الاستجابة في مقياس واحد على الأقل، فتُفسَّر نتيجته بحذر.');
+  }
+  const row = (t, v) => v ? `<tr><th>${t}</th><td>${v}</td></tr>` : '';
+  return shell(`<section class="card rep clin">
+    <div class="chead"><div>${LOGO}<div><b>${esc(cfg.appName)}</b><small>منصة الفرز النفسي الأولي</small></div></div><div class="cmeta"><span class="conf">سري — للمختص المعالج</span><span>رقم الحالة: <b dir="ltr">MQ-${esc(String(c.id).slice(-6).toUpperCase())}</b></span><span>تاريخ التقرير: <b>${fmtDate(new Date())}</b></span></div></div>
+    <h1>تقرير الفرز النفسي الأولي والإحالة</h1>
+    <h3>1. البيانات التعريفية</h3><table class="kv">${row('الاسم', esc(c.name))}${row('العمر', c.age ? c.age + ' سنة' : '')}${row('الجنس', c.gender === 'f' ? 'أنثى' : c.gender === 'm' ? 'ذكر' : '')}${row('الصفة', esc(c.relation))}${row('عدد المقاييس المطبقة', String(last.length))}</table>
+    <h3>2. سبب التقييم وتاريخ الحالة</h3>${k ? `<table class="kv">${row('الشكوى الرئيسية', esc(k.complaint))}${row('المدة', esc(k.duration))}${row('البداية', esc(k.onset))}${row('التأثر الوظيفي', impact.map(esc).join(' · '))}${row('ضغوط حالية', (k.stress || []).map(esc).join(' · '))}${row('مراجعة نفسية سابقة', esc(k.prev) + (k.prevNote ? ' — ' + esc(k.prevNote) : ''))}${row('أدوية حالية', esc(k.meds))}${row('حالات صحية', esc(k.medical))}${row('تاريخ أسري نفسي', esc(k.famhx))}${row('الأداء الدراسي', esc(k.school))}${row('ملاحظات', esc(k.notes))}</table><p class="note">البيانات أعلاه كما أدخلها المفحوص أو ولي أمره، ولم يتحقق منها مختص.</p>` : '<p class="muted">لم تُعبَّأ استمارة تاريخ الحالة.</p>'}
+    <h3>3. الأدوات المطبقة والنتائج</h3>${tools ? `<div class="tw"><table class="res"><tr><th>الأداة</th><th>المجيب</th><th>التاريخ</th><th>الدرجة</th><th>الحد الفاصل</th><th>التصنيف</th><th>صلاحية الاستجابة</th></tr>${tools}</table></div>` : '<p class="muted">لا توجد نتائج.</p>'}
+    ${detail ? `<h3>4. التحليل التفصيلي للمقاييس المرتفعة</h3>${detail}` : ''}
+    <h3>5. مؤشرات الخطورة</h3>${urgent ? `<div class="urgent"><b>مؤشر خطورة إيجابي</b><p>أجاب المفحوص بغير "أبداً" على بند أفكار إيذاء النفس. يلزم تقييم خطورة مباشر من مختص. ${esc(cfg.urgentHelp)}</p></div>` : '<p>لم يُسجَّل مؤشر خطورة في بنود إيذاء النفس ضمن المقاييس المطبقة. غياب المؤشر في الفرز لا ينفي الخطورة.</p>'}
+    <h3>6. الانطباع الأولي (نتيجة فرز لا تشخيص)</h3><ul>${imp.map(t => `<li>${t}</li>`).join('')}</ul>
+    ${dx.length ? `<h3>7. مجالات يُقترح تقييمها تشخيصياً</h3><p class="muted">تُذكر لتوجيه المقابلة الإكلينيكية، ولا تعني ثبوت أي منها.</p><ul class="cols">${dx.map(t => `<li>${t}</li>`).join('')}</ul>` : ''}
+    <h3>8. التوصيات</h3><div class="refbox ${ref.cls}"><b>${ref.title}</b><span>${ref.text}</span></div>
+      ${top >= 2 || urgent ? `<p><b>المختص المقترح:</b> ${specialistFor(c.age || 30, top, urgent, domains).join('، ')}.</p>` : ''}
+      ${more.length ? `<p class="lbl">تقييمات إضافية مقترحة:</p><ul>${more.map(t => `<li>${t}</li>`).join('')}</ul>` : ''}
+    <h3>9. حدود التقرير</h3><ul class="small"><li>أدوات فرز بالتقرير الذاتي أو تقرير ولي الأمر، طُبقت إلكترونياً دون إشراف مختص.</li><li>الصياغة العربية للبنود في المنصة ترجمة عمل لم تُقنَّن بعد، فلا تنطبق عليها تماماً بيانات الصدق والثبات المذكورة للنسخ الأصلية والعربية المنشورة.</li><li>الحدود الفاصلة من الأدلة الأصلية أو من دراسات محددة العينة، وقد لا تناسب كل فئة.</li><li>التقرير لا يشخّص ولا يصف علاجاً؛ التشخيص يتطلب مقابلة إكلينيكية.</li></ul>
+    <div class="clinbox"><h3>خاص بالمختص</h3><p>الانطباع التشخيصي: <span class="line"></span></p><p>الخطة: <span class="line"></span></p><p class="sig"><span>اسم المختص وتوقيعه: <span class="line s"></span></span><span>التاريخ: <span class="line s"></span></span></p></div>
+  </section><p class="center no-print"><button class="btn primary" data-act="print">طباعة / حفظ PDF</button> <button class="btn" data-act="${c.admin ? 'adminUser' : 'history'}" ${c.admin ? `data-id="${esc(S.adminUser)}"` : ''}>رجوع</button></p>`, { cls: 'report' });
 };
 
 // ---------- مكونات التقارير ----------
@@ -336,8 +417,8 @@ const errText = e => {
   return 'تعذر إتمام العملية. حاول مرة أخرى.' + (m ? ' (' + m + ')' : '');
 };
 async function loadData() {
-  const [m, r] = await Promise.all([Store.listMembers(S.user).catch(() => []), Store.listResults(S.user).catch(() => [])]);
-  S.members = m; S.results = r;
+  const [m, r, k] = await Promise.all([Store.listMembers(S.user).catch(() => []), Store.listResults(S.user).catch(() => []), Store.listIntakes(S.user).catch(() => ({}))]);
+  S.members = m; S.results = r; S.intakes = k;
 }
 async function afterLogin(u) {
   S.user = u; S.personId = '';
@@ -358,6 +439,11 @@ root.addEventListener('submit', async e => {
       S.recovery = null; S.info = 'تم تغيير كلمة المرور. سجّل الدخول الآن.'; go('auth', true);
     } else if (f.dataset.form === 'note') {
       const n = await Store.addNote(S.adminUser, d.text, S.user.name); (S.admin.notes = S.admin.notes || []).unshift(n); render();
+    } else if (f.dataset.form === 'intake') {
+      const fd = new FormData(f), data = { complaint: d.complaint || '', duration: d.duration || '', onset: d.onset || '', impact: {}, stress: fd.getAll('stress'),
+        prev: d.prev || '', prevNote: d.prevNote || '', meds: d.meds || '', medical: d.medical || '', famhx: d.famhx || '', school: d.school || '', notes: d.notes || '', date: new Date().toISOString() };
+      INTAKE.impact.forEach(([k]) => { data.impact[k] = Number(d['imp_' + k] || 0); });
+      await Store.saveIntake(S.user, cur().id, data); S.intakes[cur().id] = data; go('history');
     } else if (f.dataset.form === 'member') {
       S.members.push(await Store.addMember(S.user, { name: d.name.trim(), relation: d.relation, birthYear: Number(d.birthYear), gender: d.gender })); go('family');
     } else if (f.dataset.form === 'profile') {
@@ -385,8 +471,24 @@ root.addEventListener('click', async e => {
     else if (act === 'mdel') { await Store.deleteMember(id); S.members = S.members.filter(m => m.id !== id); if (S.personId === id) S.personId = ''; render(); }
     else if (act === 'cat') { S.cat = id; render(); }
     else if (act === 'intro') { S.scale = SCALES.find(s => s.id === id); go('intro'); }
-    else if (act === 'start') { Store.progress.clear(); S.idx = 0; S.answers = []; go('question'); }
-    else if (act === 'resume') { const p = Store.progress.get(S.user.id, S.scale.id + '|' + cur().id); S.answers = p.answers; S.idx = Math.min(p.idx, S.scale.items.length - 1); go('question'); }
+    else if (act === 'start') { Store.progress.clear(); S.idx = 0; S.answers = []; S.t0 = Date.now(); go('question'); }
+    else if (act === 'pick') {
+      const i = Number(b.dataset.i), k = Number(b.dataset.k); S.answers[i] = k;
+      const row = b.closest('.frow'); row.classList.add('ans'); row.classList.remove('miss'); row.querySelectorAll('.fo').forEach(x => x.classList.toggle('sel', x === b));
+      const n = S.scale.items.length, done = S.scale.items.filter((_, j) => S.answers[j] != null).length;
+      root.querySelector('#fbar').style.width = Math.round(done / n * 100) + '%'; root.querySelector('#fcount').textContent = done + ' / ' + n;
+      Store.progress.set({ userId: S.user.id, scaleId: S.scale.id + '|' + cur().id, idx: 0, answers: S.answers });
+    }
+    else if (act === 'submitForm') {
+      const miss = S.scale.items.map((_, j) => j).filter(j => S.answers[j] == null);
+      if (miss.length) { miss.forEach(j => root.querySelector('#q' + j).classList.add('miss')); root.querySelector('#q' + miss[0]).scrollIntoView({ behavior: 'smooth', block: 'center' }); return; }
+      Store.progress.clear(); await finish();
+    }
+    else if (act === 'intake') go('intake');
+    else if (act === 'case') { const p = cur(); S.kase = { name: p.self ? S.user.name : p.name, age: ageOf(p), gender: p.gender, relation: p.self ? 'صاحب الحساب' : p.relation, id: p.id || S.user.id, results: resultsOf(S.results, p.id), intake: S.intakes[p.id], admin: false }; go('caseReport'); }
+    else if (act === 'acase') { const A = S.admin, u = A.users.find(x => x.id === S.adminUser) || {}, m = A.members.find(x => x.id === id), rs = resultsOf(A.results.filter(r => r.userId === S.adminUser), id || ''), k = A.intakes.find(x => x.ownerId === S.adminUser && x.memberId === (id || ''));
+      S.kase = { name: m ? m.name : u.name, age: m ? ageOf(m) : (u.birthYear ? YEAR - u.birthYear : (rs[0] || {}).age), gender: m ? m.gender : u.gender, relation: m ? m.relation : 'صاحب الحساب', id: id || S.adminUser, results: rs, intake: k && k.data, admin: true }; go('caseReport'); }
+    else if (act === 'resume') { S.t0 = null; const p = Store.progress.get(S.user.id, S.scale.id + '|' + cur().id); S.answers = p.answers; S.idx = Math.min(p.idx, S.scale.items.length - 1); go('question'); }
     else if (act === 'back') { if (S.idx === 0) { S.scale = null; go('home'); } else { S.idx--; render(); } }
     else if (act === 'answer') {
       S.answers[S.idx] = Number(b.dataset.k);
@@ -418,7 +520,7 @@ root.addEventListener('input', e => {
 async function finish() {
   const person = cur(), sc = scoreScale(S.scale, S.answers, person.gender);
   const r = Object.assign(sc, { scaleId: S.scale.id, scaleName: S.scale.name, answers: S.answers.slice(), age: ageOf(person), gender: person.gender,
-    memberId: person.id, memberName: person.self ? '' : person.name, userName: S.user.name, date: new Date().toISOString() });
+    memberId: person.id, memberName: person.self ? '' : person.name, userName: S.user.name, secs: S.t0 ? Math.round((Date.now() - S.t0) / 1000) : 0, date: new Date().toISOString() });
   try { S.result = await Store.saveResult(S.user, r); } catch (err) { S.result = r; }
   S.results.unshift(S.result); S.parentView = false; go('result');
 }

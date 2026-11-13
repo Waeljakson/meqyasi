@@ -9,6 +9,7 @@ window.APP_CONFIG = {
   profilesTableId: 'profiles',                // جدول بيانات المستخدمين (للإدارة)
   blocksTableId: 'blocks',
   membersTableId: 'members',                  // أفراد الأسرة
+  intakesTableId: 'intakes',                  // استمارات تاريخ الحالة
   notesTableId: 'notes',                      // ملاحظات المدير على الحالات
   siteUrl: 'https://waeljakson.github.io/meqyasi/', // رابط المنصة (لرسالة استعادة كلمة المرور)                    // جدول الحسابات الموقوفة
   // نص يظهر عند وجود مؤشر خطر عاجل — ضع هنا أرقام الجهات المعتمدة في بلدك/مؤسستك.

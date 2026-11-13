@@ -19,12 +19,12 @@ const Store = (() => {
   const toDoc = (r, user) => ({
     scaleId: r.scaleId, scaleName: r.scaleName, total: r.total, max: r.max, band: r.band, level: r.level,
     urgent: !!r.urgent, subs: JSON.stringify(r.subs), answers: JSON.stringify(r.answers), age: r.age, gender: r.gender,
-    userId: user.id, userName: user.name, memberId: r.memberId || '', memberName: r.memberName || ''
+    userId: user.id, userName: user.name, memberId: r.memberId || '', memberName: r.memberName || '', secs: r.secs || 0
   });
   const fromDoc = d => ({
     id: d.$id, date: d.$createdAt, scaleId: d.scaleId, scaleName: d.scaleName, total: d.total, max: d.max, band: d.band,
     level: d.level, urgent: d.urgent, subs: JSON.parse(d.subs || '[]'), answers: JSON.parse(d.answers || '[]'), age: d.age, gender: d.gender,
-    userId: d.userId || '', userName: d.userName || '', memberId: d.memberId || '', memberName: d.memberName || ''
+    userId: d.userId || '', userName: d.userName || '', memberId: d.memberId || '', memberName: d.memberName || '', secs: d.secs || 0
   });
   const toMember = m => ({ id: m.$id, ownerId: m.ownerId, name: m.name, relation: m.relation, birthYear: m.birthYear, gender: m.gender });
   async function listAll(tableId, extra) {
@@ -117,16 +117,28 @@ const Store = (() => {
       if (!live) { ls.set('members', ls.get('members', []).filter(m => m.id !== id)); return; }
       await db.deleteRow(cfg.databaseId, cfg.membersTableId, id);
     },
+    async listIntakes(user) {
+      if (!live) return ls.get('intakes', {});
+      const q = [AW.Query.limit(100)]; if (user.isAdmin) q.push(AW.Query.equal('ownerId', user.id));
+      const out = {}; (await db.listRows(cfg.databaseId, cfg.intakesTableId, q)).rows.forEach(r => { try { out[r.memberId || ''] = JSON.parse(r.data); } catch (e) { /* تجاهل */ } });
+      return out;
+    },
+    async saveIntake(user, memberId, data) {
+      if (!live) { const all = ls.get('intakes', {}); all[memberId || ''] = data; ls.set('intakes', all); return; }
+      const rowId = memberId || user.id, row = { ownerId: user.id, memberId: memberId || '', data: JSON.stringify(data) }, role = AW.Role.user(user.id);
+      try { await db.updateRow(cfg.databaseId, cfg.intakesTableId, rowId, row); }
+      catch (e) { await db.createRow(cfg.databaseId, cfg.intakesTableId, rowId, row, [AW.Permission.read(role), AW.Permission.update(role), AW.Permission.delete(role)]); }
+    },
     async deleteResult(id) {
       if (!live) { ls.set('results', ls.get('results', []).filter(r => r.id !== id)); return; }
       await db.deleteRow(cfg.databaseId, cfg.tableId, id);
     },
     // ---------- الإدارة (لمن يحمل الوسم admin فقط؛ الصلاحية يفرضها Appwrite) ----------
     async adminData() {
-      const [profiles, results, blocks, notes, members] = await Promise.all([listAll(cfg.profilesTableId), listAll(cfg.tableId), listAll(cfg.blocksTableId), listAll(cfg.notesTableId).catch(() => []), listAll(cfg.membersTableId).catch(() => [])]);
+      const [profiles, results, blocks, notes, members, intakes] = await Promise.all([listAll(cfg.profilesTableId), listAll(cfg.tableId), listAll(cfg.blocksTableId), listAll(cfg.notesTableId).catch(() => []), listAll(cfg.membersTableId).catch(() => []), listAll(cfg.intakesTableId).catch(() => [])]);
       return {
         users: profiles.map(p => ({ id: p.userId, name: p.name, email: p.email, birthYear: p.birthYear, gender: p.gender, joined: p.$createdAt })),
-        results: results.map(fromDoc), members: members.map(toMember), blocked: blocks.map(b => b.userId),
+        results: results.map(fromDoc), members: members.map(toMember), intakes: intakes.map(r => { let d = {}; try { d = JSON.parse(r.data); } catch (e) { /* تجاهل */ } return { ownerId: r.ownerId, memberId: r.memberId || '', data: d }; }), blocked: blocks.map(b => b.userId),
         notes: notes.map(n => ({ id: n.$id, userId: n.userId, text: n.text, author: n.author, date: n.$createdAt }))
       };
     },
