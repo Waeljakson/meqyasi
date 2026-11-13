@@ -13,6 +13,7 @@ const LV = ['طبيعي', 'خفيف', 'متوسط', 'مرتفع'];
 const RELATIONS = ['ابن', 'ابنة', 'زوج', 'زوجة', 'أب', 'أم', 'أخ', 'أخت', 'آخر'];
 const CHEERS = ['رائع! واصل 🌟', 'أنت بطل! 💪', 'ممتاز، اقتربنا 🚀', 'أحسنت! نجمة جديدة ⭐', 'شجاع جداً 🦁'];
 const CATS = [{ id: 'mood', name: 'المشاعر والمزاج', icon: '💗' }, { id: 'digital', name: 'العادات الرقمية', icon: '🎮' }, { id: 'strength', name: 'العافية والقوة النفسية', icon: '🌟' }];
+const CATDESC = { mood: 'القلق والحزن والضغوط وما يرتبط بها', digital: 'الألعاب والجوال ووسائل التواصل', strength: 'نقاط قوتك: الرضا وتقدير الذات والصمود والدعم' };
 const catOf = s => s.domain === 'digital' ? 'digital' : s.positive ? 'strength' : 'mood';
 const HINTS = ['ما رأيك؟', 'أجب بصدق 😊', 'لا توجد إجابة خاطئة', 'خذ وقتك', 'أنا معك!'];
 
@@ -114,20 +115,34 @@ const V = {
         <button class="btn primary" type="submit">حفظ ومتابعة</button></form></section>`);
   },
   home() {
-    const person = cur(), age = ageOf(person), st = stageOf(age), list = scalesOf(person);
+    const person = cur(), age = ageOf(person), st = stageOf(age), all = scalesOf(person), child = st === 'child';
     const chips = people().map(p => `<button class="pchip ${p.id === person.id ? 'on' : ''}" data-act="person" data-id="${p.id}"><span>${p.self ? '🙂' : ageOf(p) <= 12 ? '🧒' : ageOf(p) <= 17 ? '🧑' : p.gender === 'f' ? '👩' : '👨'}</span>${esc(p.self ? 'أنا' : p.name)}</button>`).join('');
     const who = person.self ? esc(S.user.name) : esc(person.name);
-    const hello = st === 'child' ? `${MASCOT}<h1>أهلاً ${who}! جاهز للمغامرة؟</h1>` : `<h1>${person.self ? 'أهلاً ' + who : 'مقاييس ' + who}</h1>`;
-    const done = new Set(resultsOf(S.results, person.id).map(r => r.scaleId));
-    const card = (s, i) => `<button class="scale k${i % 6}" data-act="intro" data-id="${s.id}">
-      <span class="ico">${s.icon}</span><b>${esc(s.name)}</b><small>${esc(s.measures)}</small>
-      <span class="meta">${s.items.length} سؤالاً · ${s.minutes} د${done.has(s.id) ? ' · <span class="donetag">✓ أُنجز</span>' : ''}</span></button>`;
-    let k = 0;
-    const cards = CATS.map(c => { const g = list.filter(s => catOf(s) === c.id); return g.length ? `<h2 class="cat"><span>${c.icon}</span>${c.name}</h2><section class="grid">${g.map(s => card(s, k++)).join('')}</section>` : ''; }).join('');
+    const mine = resultsOf(S.results, person.id), lastOf = {};
+    mine.forEach(r => { if (!lastOf[r.scaleId]) lastOf[r.scaleId] = r; });
+    const doneN = all.filter(s => lastOf[s.id]).length, pct = all.length ? Math.round(doneN / all.length * 100) : 0;
+    const ql = (S.sq || '').trim().toLowerCase(), cat = S.cat || 'all';
+    const list = all.filter(s => (cat === 'all' || catOf(s) === cat) && (!ql || (s.name + ' ' + s.measures + ' ' + s.formal).toLowerCase().includes(ql)));
+    const card = s => { const r = lastOf[s.id], c = catOf(s);
+      return `<button class="scard c-${c} ${r ? 'done' : ''}" data-act="intro" data-id="${s.id}">
+        <span class="sico">${s.icon}</span>
+        <span class="sbody"><b>${esc(s.name)}</b><small>${esc(s.measures)}</small>
+          <span class="badges"><em>⏱ ${s.minutes} د</em><em>${s.items.length} سؤالاً</em>${s.respondent === 'parent' ? '<em class="par">يجيب ولي الأمر</em>' : ''}</span></span>
+        <span class="sfoot">${r ? `<span class="last"><i class="lvl l${r.level}"></i>آخر نتيجة: ${LV[r.level]} · ${fmtDate(r.date)}</span><span class="cta">إعادة ↺</span>` : '<span class="last new">لم يُجرَ بعد</span><span class="cta">ابدأ ←</span>'}</span></button>`; };
+    const next = all.find(s => !lastOf[s.id]);
+    const tabs = [{ id: 'all', name: 'الكل', icon: '✨' }].concat(CATS).map(c => { const n = c.id === 'all' ? all.length : all.filter(s => catOf(s) === c.id).length;
+      return n ? `<button class="tab ${cat === c.id ? 'on' : ''}" data-act="cat" data-id="${c.id}"><span>${c.icon}</span>${c.name}<b>${n}</b></button>` : ''; }).join('');
+    const sections = (cat === 'all' && !ql ? CATS : [{ id: null }]).map(c => { const g = c.id ? list.filter(s => catOf(s) === c.id) : list;
+      return g.length ? `${c.id ? `<div class="cathead c-${c.id}"><span>${c.icon}</span><div><h2>${c.name}</h2><p>${CATDESC[c.id]}</p></div></div>` : ''}<section class="sgrid">${g.map(card).join('')}</section>` : ''; }).join('');
+    const hello = child ? `${MASCOT}<h1>أهلاً ${who}! جاهز للمغامرة؟</h1>` : `<h1>${person.self ? 'أهلاً ' + who : 'مقاييس ' + who}</h1>`;
+    if (!all.length) return shell(`<div class="people no-print">${chips}<button class="pchip add" data-act="family">＋ إضافة فرد</button></div><p class="card">لا توجد مقاييس مناسبة لهذا العمر. ننصح باستشارة أخصائي نفسي للأطفال.</p>`);
     return shell(`<div class="people no-print">${chips}<button class="pchip add" data-act="family">＋ إضافة فرد</button></div>
-      <section class="hero ${st === 'child' ? '' : 'banner'}">${st === 'child' ? '' : HERO}<div>${hello}<p class="muted">${st === 'child' ? 'اختر لعبتك وأجب بصدق، لا توجد إجابة صحيحة أو خاطئة.' : 'اختر مقياساً وأجب بصدق؛ لا توجد إجابات صحيحة أو خاطئة.'}</p></div></section>
-      ${list.length ? cards : '<p class="card">لا توجد مقاييس مناسبة لهذا العمر. ننصح باستشارة أخصائي نفسي للأطفال.</p>'}
-      <p class="center no-print"><button class="link" data-act="editProfile">تعديل بياناتي</button></p>`);
+      <section class="hero ${child ? '' : 'banner'}">${child ? '' : HERO}<div class="hgrow">${hello}<p class="muted">${child ? 'اختر لعبتك وأجب بصدق، لا توجد إجابة صحيحة أو خاطئة.' : 'اختر مقياساً وأجب بصدق؛ لا توجد إجابات صحيحة أو خاطئة.'}</p>
+        <div class="prog"><div class="pbar"><i style="width:${pct}%"></i></div><span>أُنجز ${doneN} من ${all.length}</span></div></div>
+        ${next && !child ? `<button class="nextup" data-act="intro" data-id="${next.id}"><small>مقترح الآن</small><b>${next.icon} ${esc(next.name)}</b><span>${next.minutes} دقائق · ابدأ ←</span></button>` : ''}</section>
+      ${child ? '' : `<div class="tools no-print"><div class="tabs">${tabs}</div><label class="search"><span>🔍</span><input name="sq" placeholder="ابحث عن مقياس..." value="${esc(S.sq || '')}" aria-label="بحث"></label></div>`}
+      ${sections || '<p class="card center muted">لا توجد مقاييس مطابقة للبحث.</p>'}
+      <p class="center no-print"><button class="link" data-act="editProfile">تعديل بياناتي</button></p>`, { cls: 'wide' });
   },
   intro() {
     const s = S.scale, person = cur(), key = s.id + '|' + person.id;
@@ -362,11 +377,12 @@ root.addEventListener('click', async e => {
     else if (act === 'home') { S.parentView = false; S.fromAdmin = false; S.scale = null; go('home'); }
     else if (act === 'editProfile') go('profile');
     else if (act === 'logout') { await Store.logout(); S.user = null; S.members = []; S.results = []; S.scale = null; go('auth'); }
-    else if (act === 'person') { S.personId = id; S.scale = null; S.fromAdmin = false; go('home'); }
+    else if (act === 'person') { S.cat = 'all'; S.sq = ''; S.personId = id; S.scale = null; S.fromAdmin = false; go('home'); }
     else if (act === 'hperson') { S.personId = id; render(); }
     else if (act === 'family') { S.scale = null; go('family'); }
     else if (act === 'familyReport') go('familyReport');
     else if (act === 'mdel') { await Store.deleteMember(id); S.members = S.members.filter(m => m.id !== id); if (S.personId === id) S.personId = ''; render(); }
+    else if (act === 'cat') { S.cat = id; render(); }
     else if (act === 'intro') { S.scale = SCALES.find(s => s.id === id); go('intro'); }
     else if (act === 'start') { Store.progress.clear(); S.idx = 0; S.answers = []; go('question'); }
     else if (act === 'resume') { const p = Store.progress.get(S.user.id, S.scale.id + '|' + cur().id); S.answers = p.answers; S.idx = Math.min(p.idx, S.scale.items.length - 1); go('question'); }
@@ -394,9 +410,9 @@ root.addEventListener('click', async e => {
   } catch (err) { S.msg = errText(err); render(); }
 });
 root.addEventListener('input', e => {
-  if (e.target.name !== 'q') return;
-  S.q = e.target.value; const pos = e.target.selectionStart; render();
-  const i = root.querySelector('[name=q]'); if (i) { i.focus(); i.setSelectionRange(pos, pos); }
+  const nm = e.target.name; if (nm !== 'q' && nm !== 'sq') return;
+  S[nm] = e.target.value; const pos = e.target.selectionStart; render();
+  const i = root.querySelector('[name=' + nm + ']'); if (i) { i.focus(); i.setSelectionRange(pos, pos); }
 });
 async function finish() {
   const person = cur(), sc = scoreScale(S.scale, S.answers, person.gender);
