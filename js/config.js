@@ -10,6 +10,16 @@ window.APP_CONFIG = {
   blocksTableId: 'blocks',
   membersTableId: 'members',                  // أفراد الأسرة
   intakesTableId: 'intakes',                  // استمارات تاريخ الحالة
+  settingsTableId: 'settings',                // إعدادات الدفع (يعدّلها المدير من اللوحة)
+  payreqTableId: 'payreq',                    // طلبات الاشتراك وإثباتات الدفع
+  subsTableId: 'subs',                        // الاشتراكات المفعّلة
+  freeLimit: 2,                               // عدد المقاييس المجانية قبل الاشتراك
+  disabledScales: [],                         // معرّفات مقاييس تُخفى من المنصة، مثل ['igds9','smfq']
+  // القيم الافتراضية لبيانات الدفع. رقم الحساب والآيبان وصور QR يدخلها المدير من لوحة الإدارة ولا تُكتب هنا.
+  pay: {
+    eg: { price: '50 جنيهاً مصرياً شهرياً', vodafone: '01067908302', instapay: 'waeljaksonstar@instapay' },
+    sa: { price: '10 ريالات سعودية شهرياً', bank: 'مصرف الراجحي', name: 'محمد صلاح الدين محمد الجمل', account: '', iban: '', swift: '' }
+  },
   notesTableId: 'notes',                      // ملاحظات المدير على الحالات
   siteUrl: 'https://waeljakson.github.io/meqyasi/', // رابط المنصة (لرسالة استعادة كلمة المرور)                    // جدول الحسابات الموقوفة
   // نص يظهر عند وجود مؤشر خطر عاجل — ضع هنا أرقام الجهات المعتمدة في بلدك/مؤسستك.

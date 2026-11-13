@@ -1,7 +1,7 @@
 // واجهة المنصة (صفحة واحدة).
 const cfg = window.APP_CONFIG;
 const root = document.getElementById('app');
-const S = { user: null, intakes: {}, kase: null, members: [], personId: '', scale: null, idx: 0, answers: [], result: null, results: [], admin: null, adminUser: null,
+const S = { user: null, sub: null, settings: {}, myReqs: [], subAdmin: { reqs: [], subs: [] }, country: 'eg', intakes: {}, kase: null, members: [], personId: '', scale: null, idx: 0, answers: [], result: null, results: [], admin: null, adminUser: null,
   q: '', info: '', sum: null, view: 'auth', authTab: 'login', msg: '' };
 
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -41,24 +41,40 @@ function selfPerson() { const p = S.user.profile; return { id: '', name: S.user.
 function people() { return [selfPerson()].concat(S.members); }
 function cur() { return S.members.find(m => m.id === S.personId) || selfPerson(); }
 function resultsOf(list, personId) { return list.filter(r => (r.memberId || '') === personId); }
-function scalesOf(person) { return scalesFor(ageOf(person), person.gender).filter(s => s.respondent !== 'parent' || !person.self); }
+function scalesOf(person) { return scalesFor(ageOf(person), person.gender).filter(s => (s.respondent !== 'parent' || !person.self) && !(cfg.disabledScales || []).includes(s.id)); }
+// ---------- الاشتراك ----------
+function isSub() { return !!(S.user && (S.user.isAdmin || (S.sub && new Date(S.sub.until) > new Date()))); }
+function freeLeft() { return Math.max(0, cfg.freeLimit - S.results.length); }
+function lockReason(scale, person) {
+  if (isSub()) return '';
+  if (S.results.some(r => r.scaleId === scale.id && (r.memberId || '') === person.id)) return 'في النسخة المجانية يُجرى كل مقياس مرة واحدة. اشترك لإعادة القياس ومتابعة التطور.';
+  if (freeLeft() <= 0) return 'استخدمت المقاييس المجانية (' + cfg.freeLimit + '). اشترك لاستخدام جميع المقاييس دون حد.';
+  return '';
+}
+function payInfo() { let v = {}; try { v = JSON.parse(S.settings.pay || '{}'); } catch (e) { v = {}; } return { eg: Object.assign({}, cfg.pay.eg, v.eg), sa: Object.assign({}, cfg.pay.sa, v.sa) }; }
+function fileToDataUrl(file, maxDim) {
+  return new Promise((res, rej) => { if (!file || !file.size) return res(''); const fr = new FileReader();
+    fr.onerror = () => rej(new Error('تعذر قراءة الصورة')); fr.onload = () => { const img = new Image(); img.onerror = () => rej(new Error('الملف ليس صورة صالحة'));
+      img.onload = () => { const k = Math.min(1, maxDim / Math.max(img.width, img.height)), c = document.createElement('canvas'); c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
+        const x = c.getContext('2d'); x.fillStyle = '#fff'; x.fillRect(0, 0, c.width, c.height); x.drawImage(img, 0, 0, c.width, c.height); res(c.toDataURL('image/jpeg', 0.8)); }; img.src = fr.result; }; fr.readAsDataURL(file); });
+}
 
 function setTheme() {
   let st = 'adult';
   if (S.user && S.user.profile.birthYear) {
     st = stageOf(ageOf(cur()));
     if (S.scale && S.scale.respondent === 'parent' && ['intro', 'question', 'result'].includes(S.view)) st = 'adult';
-    if (['admin', 'adminUser', 'family', 'familyReport', 'privacy', 'history', 'summary', 'intake', 'caseReport'].includes(S.view) || (S.view === 'result' && (S.parentView || S.fromAdmin))) st = stageOf(ageOf(selfPerson()));
+    if (['admin', 'adminUser', 'family', 'familyReport', 'privacy', 'history', 'summary', 'intake', 'caseReport', 'subscribe'].includes(S.view) || (S.view === 'result' && (S.parentView || S.fromAdmin))) st = stageOf(ageOf(selfPerson()));
   }
   document.body.className = 'theme-' + st;
 }
 function formMode() { return S.scale && (S.scale.respondent === 'parent' || ageOf(cur()) >= 16); }
-function navOn(a) { const v = S.view; return a === 'home' ? ['home', 'intro', 'question', 'result'].includes(v) && !S.fromAdmin : a === 'family' ? v.startsWith('family') : a === 'history' ? ['history', 'summary', 'intake', 'caseReport'].includes(v) && !(S.kase && S.kase.admin && v === 'caseReport') && !(S.sum && S.sum.admin && v === 'summary') : a === 'admin' ? v.startsWith('admin') : false; }
+function navOn(a) { const v = S.view; return a === 'home' ? ['home', 'intro', 'question', 'result'].includes(v) && !S.fromAdmin : a === 'family' ? v.startsWith('family') : a === 'history' ? ['history', 'summary', 'intake', 'caseReport'].includes(v) && !(S.kase && S.kase.admin && v === 'caseReport') && !(S.sum && S.sum.admin && v === 'summary') : a === 'admin' ? v.startsWith('admin') : a === 'subscribe' ? v === 'subscribe' : false; }
 function go(view, keep) { S.view = view; if (!keep) { S.msg = ''; S.info = ''; } render(); window.scrollTo(0, 0); }
 function shell(inner, opts = {}) {
   const u = S.user, ready = u && u.profile.birthYear;
   return `<header class="top no-print"><div class="brand">${LOGO}<span>${esc(cfg.appName)}</span></div>
-    ${ready ? `<nav>${[['home', '🏠', 'الرئيسية'], ['family', '👨‍👩‍👧', 'أسرتي'], ['history', '📊', 'السجل']].concat(u.isAdmin ? [['admin', '🛡️', 'الإدارة']] : []).concat([['logout', '🚪', 'خروج']]).map(([a, i, t]) => `<button data-act="${a}" class="${navOn(a) ? 'on' : ''}"><i>${i}</i><span>${t}</span></button>`).join('')}</nav>` : ''}</header>
+    ${ready ? `<nav>${[['home', '🏠', 'الرئيسية'], ['family', '👨‍👩‍👧', 'أسرتي'], ['history', '📊', 'السجل']].concat(u.isAdmin ? [['admin', '🛡️', 'الإدارة']] : [['subscribe', '💎', 'الاشتراك']]).concat([['logout', '🚪', 'خروج']]).map(([a, i, t]) => `<button data-act="${a}" class="${navOn(a) ? 'on' : ''}"><i>${i}</i><span>${t}</span></button>`).join('')}</nav>` : ''}</header>
     ${Store.live ? '' : '<div class="demo no-print">وضع تجريبي: البيانات تُحفظ على هذا الجهاز فقط حتى يُربط Appwrite.</div>'}
     <main class="${opts.cls || ''}">${inner}</main>
     <footer class="no-print"><div class="fbrand">${LOGO}<b>${esc(cfg.appName)}</b></div>
@@ -125,8 +141,8 @@ const V = {
     const doneN = all.filter(s => lastOf[s.id]).length, pct = all.length ? Math.round(doneN / all.length * 100) : 0;
     const ql = (S.sq || '').trim().toLowerCase(), cat = S.cat || 'all';
     const list = all.filter(s => (cat === 'all' || catOf(s) === cat) && (!ql || (s.name + ' ' + s.measures + ' ' + s.formal).toLowerCase().includes(ql)));
-    const card = s => { const r = lastOf[s.id], c = catOf(s);
-      return `<button class="scard c-${c} ${r ? 'done' : ''}" data-act="intro" data-id="${s.id}">
+    const card = s => { const r = lastOf[s.id], c = catOf(s), lock = !!lockReason(s, person);
+      return `<button class="scard c-${c} ${r ? 'done' : ''} ${lock ? 'locked' : ''}" data-act="intro" data-id="${s.id}">${lock ? '<span class="lockb">🔒 للمشتركين</span>' : ''}
         <span class="sico">${s.icon}</span>
         <span class="sbody"><b>${esc(s.name)}</b><small>${esc(s.measures)}</small>
           <span class="badges"><em>⏱ ${s.minutes} د</em><em>${s.items.length} سؤالاً</em>${s.respondent === 'parent' ? '<em class="par">يجيب ولي الأمر</em>' : ''}</span></span>
@@ -142,6 +158,7 @@ const V = {
       <section class="hero ${child ? '' : 'banner'}">${child ? '' : HERO}<div class="hgrow">${hello}<p class="muted">${child ? 'اختر لعبتك وأجب بصدق، لا توجد إجابة صحيحة أو خاطئة.' : 'اختر مقياساً وأجب بصدق؛ لا توجد إجابات صحيحة أو خاطئة.'}</p>
         <div class="prog"><div class="pbar"><i style="width:${pct}%"></i></div><span>أُنجز ${doneN} من ${all.length}</span></div></div>
         ${next && !child ? `<button class="nextup" data-act="intro" data-id="${next.id}"><small>مقترح الآن</small><b>${next.icon} ${esc(next.name)}</b><span>${next.minutes} دقائق · ابدأ ←</span></button>` : ''}</section>
+      ${isSub() ? '' : `<button class="freebar no-print" data-act="subscribe"><span>💎</span><div><b>النسخة المجانية: بقي لك ${freeLeft()} من ${cfg.freeLimit} مقياس</b><small>اشترك لاستخدام جميع المقاييس (${SCALES.length}) وإعادة القياس دون حد</small></div><i>اشترك الآن ←</i></button>`}
       ${child ? '' : `<div class="tools no-print"><div class="tabs">${tabs}</div><label class="search"><span>🔍</span><input name="sq" placeholder="ابحث عن مقياس..." value="${esc(S.sq || '')}" aria-label="بحث"></label></div>`}
       ${sections || '<p class="card center muted">لا توجد مقاييس مطابقة للبحث.</p>'}
       ${child ? '' : `<button class="dirlink no-print" data-act="directory"><span>🏥</span><div><b>اختبارات يطبقها المختص فقط</b><small>ستانفورد-بينيه، وكسلر، فاينلاند، كونرز، MMPI وغيرها: ما تقيسه ومتى تُطلب</small></div><i>←</i></button>`}
@@ -203,7 +220,7 @@ const V = {
   history() {
     const person = cur(), mine = resultsOf(S.results, person.id);
     const rows = mine.map(r => `<li><div><b>${esc(r.scaleName)}</b><small>${fmtDate(r.date)} · ${fmtScore(r)} · ${esc(r.band)}</small></div>
-      <span class="lvl l${r.level}"></span><button class="btn sm" data-act="open" data-id="${r.id}">التقرير</button><button class="btn sm ghost" data-act="del" data-id="${r.id}">حذف</button></li>`).join('');
+      <span class="lvl l${r.level}"></span><button class="btn sm" data-act="open" data-id="${r.id}">التقرير</button>${isSub() ? `<button class="btn sm ghost" data-act="del" data-id="${r.id}">حذف</button>` : ''}</li>`).join('');
     const chips = people().map(p => `<button class="pchip ${p.id === person.id ? 'on' : ''}" data-act="hperson" data-id="${p.id}">${esc(p.self ? 'أنا' : p.name)}</button>`).join('');
     return shell(`<div class="people no-print">${chips}</div><section class="card"><h1>سجل ${person.self ? 'نتائجي' : esc(person.name)}</h1>
       <p class="acts"><button class="btn" data-act="intake">📝 تاريخ الحالة ${S.intakes[person.id] ? '(مُدخل)' : '(غير مُدخل)'}</button>${rows ? ' <button class="btn primary" data-act="case">📄 تقرير الإحالة للمختص</button> <button class="btn" data-act="summary">ملخص مبسّط للأسرة</button>' : ''}</p>
@@ -242,7 +259,7 @@ const V = {
       <p class="center no-print"><button class="btn primary" data-act="print">طباعة / حفظ PDF</button> <button class="btn" data-act="${c.admin ? 'admin' : 'history'}">رجوع</button></p>`, { cls: 'report' });
   },
   privacy: () => shell(`<section class="card"><h1>الخصوصية وحماية البيانات</h1>
-    <h3>ما الذي نحفظه؟</h3><ul><li>الاسم والبريد الإلكتروني وسنة الميلاد والجنس.</li><li>أفراد الأسرة الذين تضيفهم: الاسم وصلة القرابة وسنة الميلاد والجنس.</li><li>الإجابات والدرجات في كل مقياس وتاريخ إجرائه، لك ولأفراد أسرتك.</li><li>استمارة تاريخ الحالة إن عبّأتها: الشكوى ومدتها وتأثيرها، والأدوية والحالات الصحية والتاريخ الأسري. كلها اختيارية.</li></ul>
+    <h3>ما الذي نحفظه؟</h3><ul><li>الاسم والبريد الإلكتروني وسنة الميلاد والجنس.</li><li>أفراد الأسرة الذين تضيفهم: الاسم وصلة القرابة وسنة الميلاد والجنس.</li><li>الإجابات والدرجات في كل مقياس وتاريخ إجرائه، لك ولأفراد أسرتك.</li><li>طلبات الاشتراك: اسم المحوِّل ورقم العملية وصورة إثبات الدفع التي ترفعها.</li><li>استمارة تاريخ الحالة إن عبّأتها: الشكوى ومدتها وتأثيرها، والأدوية والحالات الصحية والتاريخ الأسري. كلها اختيارية.</li></ul>
     <h3>من يطّلع عليه؟</h3><ul><li>صاحب الحساب: يرى نتائجه ونتائج الأفراد الذين أضافهم.</li><li>مختص المنصة (مدير النظام): يطّلع على بيانات ونتائج المستخدمين وأفراد أسرهم بغرض المتابعة والإرشاد فقط.</li><li>لا تُشارك البيانات مع أي جهة أخرى ولا تُستخدم للإعلانات.</li></ul>
     <h3>أين تُحفظ؟</h3><p>في قاعدة بيانات المنصة لدى خدمة Appwrite السحابية. كلمة المرور لا يراها أحد، ولا مدير النظام.</p>
     <h3>حقوقك</h3><ul><li>حذف أي نتيجة أو أي فرد من حسابك في أي وقت.</li><li>طلب حذف حسابك وكل بياناتك بالتواصل مع إدارة المنصة.</li></ul>
@@ -250,6 +267,7 @@ const V = {
     <h3>تنبيه</h3><p>المنصة أداة فرز أولي، لا تقدم تشخيصاً ولا علاجاً، ولا تغني عن مراجعة المختص. في الحالات العاجلة: ${esc(cfg.urgentHelp)}</p>
     <p class="no-print"><button class="btn" data-act="${S.user && S.user.profile.birthYear ? 'home' : 'toAuth'}">رجوع</button></p></section>`),
   admin() {
+    const SA = S.subAdmin, subOf = id => SA.subs.find(x => x.userId === id), act = x => x && new Date(x.until) > new Date(), P = payInfo();
     const A = S.admin, byUser = {}; A.results.forEach(r => { (byUser[r.userId] = byUser[r.userId] || []).push(r); });
     const refer = A.results.filter(r => r.level >= 2), urgent = A.results.filter(r => r.urgent);
     const tile = (n, t, c) => `<div class="tile ${c || ''}"><b>${n}</b><span>${t}</span></div>`;
@@ -262,13 +280,27 @@ const V = {
       const rs = byUser[u.id] || [], top = rs.length ? Math.max(...rs.map(r => r.level)) : -1, bl = A.blocked.includes(u.id), fam = A.members.filter(m => m.ownerId === u.id).length;
       return `<tr class="${bl ? 'blk' : ''}"><td>${esc(u.name)}</td><td dir="ltr">${esc(u.email)}</td><td>${u.birthYear ? YEAR - u.birthYear : '—'}</td><td>${u.gender === 'f' ? 'أنثى' : u.gender === 'm' ? 'ذكر' : '—'}</td><td>${fam}</td><td>${rs.length}</td>
         <td>${top < 0 ? '—' : `<span class="chip l${top}">${LV[top]}</span>`}</td><td>${bl ? 'موقوف' : 'نشط'}</td>
+        <td>${act(subOf(u.id)) ? `<span class="chip l0">حتى ${fmtDate(subOf(u.id).until)}</span> <button class="btn sm ghost" data-act="subOff" data-id="${u.id}">إلغاء</button>` : `<span class="muted">مجاني</span> <button class="btn sm" data-act="subOn" data-id="${u.id}" data-m="1">تفعيل شهر</button>`}</td>
         <td><button class="btn sm" data-act="adminUser" data-id="${u.id}">النتائج</button> ${u.id === S.user.id ? '' : `<button class="btn sm ghost" data-act="${bl ? 'unblock' : 'block'}" data-id="${u.id}">${bl ? 'إلغاء الإيقاف' : 'إيقاف'}</button>`}</td></tr>`;
     }).join('');
+    const pend = SA.reqs.filter(r => r.status === 'pending');
+    const reqRows = SA.reqs.slice(0, 40).map(r => `<tr class="${r.status !== 'pending' ? 'blk' : ''}"><td>${esc(r.userName)}<br><small dir="ltr">${esc(r.email)}</small></td><td>${r.country === 'sa' ? 'السعودية' : 'مصر'}<br><small>${esc(r.method)}</small></td><td>${esc(r.sender)}<br><small dir="ltr">${esc(r.ref)}</small></td><td>${fmtDate(r.date)}</td>
+      <td>${r.proof ? `<details><summary>عرض</summary><img class="proof" src="${esc(r.proof)}" alt="إثبات الدفع"></details>` : '—'}</td>
+      <td>${r.status === 'pending' ? `<button class="btn sm primary" data-act="subOn" data-id="${r.userId}" data-m="1" data-req="${r.id}">تفعيل شهر</button> <button class="btn sm" data-act="subOn" data-id="${r.userId}" data-m="3" data-req="${r.id}">3 أشهر</button> <button class="btn sm ghost" data-act="reqNo" data-id="${r.id}">رفض</button>` : (r.status === 'approved' ? 'مُفعَّل' : 'مرفوض')}</td></tr>`).join('');
+    const inp = (n, t, v, ltr) => `<label>${t}<input name="${n}" value="${esc(v || '')}" maxlength="120" ${ltr ? 'dir="ltr"' : ''}></label>`;
+    const subsBlock = `<section class="card"><h2>طلبات الاشتراك ${pend.length ? `<span class="chip l2">${pend.length} بانتظار المراجعة</span>` : ''}</h2>
+        ${reqRows ? `<div class="tw"><table><tr><th>المستخدم</th><th>البلد والطريقة</th><th>المحوِّل ورقم العملية</th><th>التاريخ</th><th>الإثبات</th><th></th></tr>${reqRows}</table></div>` : '<p class="muted">لا توجد طلبات.</p>'}</section>
+      <section class="card"><details ${S.info ? 'open' : ''}><summary><b>بيانات الدفع التي تظهر للمشتركين</b></summary>${S.info ? `<p class="okmsg">${esc(S.info)}</p>` : ''}
+        <form data-form="paysettings"><h3>مصر</h3><div class="two">${inp('eg_price', 'السعر', P.eg.price)}${inp('eg_vodafone', 'رقم فودافون كاش', P.eg.vodafone, 1)}</div><div class="two">${inp('eg_instapay', 'عنوان إنستا باي', P.eg.instapay, 1)}<label>صورة QR إنستا باي ${S.settings.qr_eg ? '(مرفوعة)' : ''}<input type="file" name="qr_eg" accept="image/*"></label></div>
+        <h3>السعودية</h3><div class="two">${inp('sa_price', 'السعر', P.sa.price)}${inp('sa_bank', 'البنك', P.sa.bank)}</div><div class="two">${inp('sa_name', 'اسم صاحب الحساب', P.sa.name)}${inp('sa_account', 'رقم الحساب', P.sa.account, 1)}</div>
+        <div class="two">${inp('sa_iban', 'الآيبان', P.sa.iban, 1)}${inp('sa_swift', 'سويفت', P.sa.swift, 1)}</div><label>صورة QR الحساب ${S.settings.qr_sa ? '(مرفوعة)' : ''}<input type="file" name="qr_sa" accept="image/*"></label>
+        <button class="btn primary" type="submit">حفظ بيانات الدفع</button></form></details></section>`;
     return shell(`<section class="card"><h1>لوحة الإدارة</h1>
-      <div class="tiles">${tile(A.users.length, 'مستخدم')}${tile(A.members.length, 'فرد أسرة')}${tile(A.results.length, 'مقياس مُنجز')}${tile(refer.length, 'نتيجة تحتاج مختصاً', 'warn')}${tile(urgent.length, 'تنبيه عاجل', 'danger')}</div></section>
+      <div class="tiles">${tile(A.users.length, 'مستخدم')}${tile(SA.subs.filter(act).length, 'مشترك فعّال')}${tile(A.members.length, 'فرد أسرة')}${tile(A.results.length, 'مقياس مُنجز')}${tile(refer.length, 'نتيجة تحتاج مختصاً', 'warn')}${tile(urgent.length, 'تنبيه عاجل', 'danger')}</div></section>
+      ${subsBlock}
       <section class="card"><h2>حالات تحتاج متابعة</h2>${cases ? `<div class="tw"><table><tr><th>الشخص</th><th>المقياس</th><th>الدرجة</th><th>المستوى</th><th>التاريخ</th><th></th></tr>${cases}</table></div>` : '<p class="muted">لا توجد حالات.</p>'}</section>
       <section class="card"><h2>المستخدمون</h2><input name="q" placeholder="بحث بالاسم أو البريد" value="${esc(S.q)}">
-        <div class="tw"><table><tr><th>الاسم</th><th>البريد</th><th>العمر</th><th>الجنس</th><th>أفراد الأسرة</th><th>المقاييس</th><th>أعلى مستوى</th><th>الحالة</th><th></th></tr>${users}</table></div></section>
+        <div class="tw"><table><tr><th>الاسم</th><th>البريد</th><th>العمر</th><th>الجنس</th><th>أفراد الأسرة</th><th>المقاييس</th><th>أعلى مستوى</th><th>الحالة</th><th>الاشتراك</th><th></th></tr>${users}</table></div></section>
       <section class="card"><h2>المقاييس الأكثر استخداماً</h2>${bars || '<p class="muted">لا توجد بيانات بعد.</p>'}
         <p><button class="btn" data-act="csv">تصدير كل النتائج CSV</button></p></section>`, { cls: 'wide' });
   },
@@ -288,6 +320,31 @@ const V = {
   }
 };
 
+V.subscribe = function () {
+  const P = payInfo(), c = S.country, p = P[c], on = isSub(), last = S.myReqs[0];
+  const kv = (t, v, ltr) => v ? `<div class="payrow"><span>${t}</span><b ${ltr ? 'dir="ltr"' : ''}>${esc(v)}</b></div>` : '';
+  const qr = S.settings['qr_' + c] ? `<img class="qr" src="${esc(S.settings['qr_' + c])}" alt="رمز QR للدفع">` : '';
+  const status = S.user.isAdmin ? '<div class="advice ok"><b>حساب المدير</b><p>كل المقاييس متاحة لك دون اشتراك.</p></div>'
+    : on ? `<div class="advice ok"><b>اشتراكك مفعّل</b><p>سارٍ حتى ${fmtDate(S.sub.until)}. كل المقاييس متاحة لك دون حد.</p></div>`
+    : last && last.status === 'pending' ? `<div class="advice mild"><b>طلبك قيد المراجعة</b><p>أُرسل في ${fmtDate(last.date)}. سيُفعَّل الاشتراك بعد تأكد الإدارة من التحويل.</p></div>`
+    : last && last.status === 'rejected' ? '<div class="advice high"><b>لم يُقبل طلبك الأخير</b><p>تعذر التأكد من التحويل. راجع البيانات وأرسل الإثبات مرة أخرى.</p></div>'
+    : `<div class="advice mild"><b>النسخة المجانية</b><p>بقي لك ${freeLeft()} من ${cfg.freeLimit} مقياس، وكل مقياس مرة واحدة.</p></div>`;
+  const methods = c === 'eg' ? ['فودافون كاش', 'إنستا باي'] : ['تحويل إلى حساب الراجحي'];
+  return shell(`<section class="card"><h1>💎 الاشتراك</h1>${S.info ? `<p class="okmsg">${esc(S.info)}</p>` : ''}${status}
+    <div class="plan"><div><b>ما تحصل عليه</b><ul><li>جميع المقاييس (${SCALES.length}) لك ولأفراد أسرتك</li><li>إعادة القياس ومتابعة التطور بالرسوم</li><li>تقرير الإحالة للمختص وتقرير الأسرة</li></ul></div>
+      <div class="price"><small>الاشتراك الشهري</small><b>${esc(p.price)}</b></div></div></section>
+    ${S.user.isAdmin ? '' : `<section class="card"><h2>طريقة الدفع</h2>
+    <div class="tabs"><button class="tab ${c === 'eg' ? 'on' : ''}" data-act="country" data-id="eg">🇪🇬 من مصر</button><button class="tab ${c === 'sa' ? 'on' : ''}" data-act="country" data-id="sa">🇸🇦 من السعودية</button></div>
+    <div class="paybox"><div class="paylist">${c === 'eg' ? kv('فودافون كاش', p.vodafone, 1) + kv('إنستا باي', p.instapay, 1) + kv('المبلغ', p.price) : kv('البنك', p.bank) + kv('اسم صاحب الحساب', p.name) + kv('رقم الحساب', p.account, 1) + kv('الآيبان', p.iban, 1) + kv('سويفت', p.swift, 1) + kv('المبلغ', p.price)}
+      ${c === 'sa' && !p.iban && !p.account && !qr ? '<p class="muted">بيانات الحساب ستُضاف قريباً. تواصل مع الإدارة.</p>' : ''}</div>${qr}</div>
+    <h3>بعد التحويل: أرسل إثبات الدفع</h3>
+    <form data-form="payreq"><div class="two"><label>طريقة الدفع<select name="method" required>${methods.map(m => `<option>${m}</option>`).join('')}</select></label>
+      <label>اسم المحوِّل أو رقم جواله<input name="sender" required maxlength="90"></label></div>
+      <label>رقم العملية (إن وُجد)<input name="ref" maxlength="150" dir="ltr"></label>
+      <label>صورة إثبات التحويل<input name="proof" type="file" accept="image/*"></label>
+      ${S.msg ? `<p class="err">${esc(S.msg)}</p>` : ''}<button class="btn primary" type="submit">إرسال الطلب</button></form>
+    <p class="note">التفعيل يدوي من الإدارة بعد التأكد من التحويل، ومدته 30 يوماً من تاريخ التفعيل. الاشتراك مقابل استخدام المنصة وتقاريرها، ولا يتضمن تشخيصاً أو علاجاً.</p></section>`}`);
+};
 V.directory = () => shell(`<section class="card"><h1>اختبارات يطبقها المختص فقط</h1>
   <p>هذه الاختبارات غير متاحة على المنصة ولا على أي موقع موثوق، لثلاثة أسباب: حقوق نشرها محفوظة لناشريها وتُباع للمختصين المرخّصين فقط، وتُطبَّق فردياً وجهاً لوجه بأدوات ومواد خاصة ووقت محسوب، ونشر بنودها يفسد صلاحيتها لكل من يُختبر بها بعد ذلك.</p>
   <p class="ref">إذا أوصى تقرير الإحالة بأحدها، اطلبه من مركز نفسي مرخّص أو من وحدة الخدمات الإرشادية، واصطحب تقرير المنصة.</p>
@@ -426,6 +483,8 @@ const errText = e => {
 async function loadData() {
   const [m, r, k] = await Promise.all([Store.listMembers(S.user).catch(() => []), Store.listResults(S.user).catch(() => []), Store.listIntakes(S.user).catch(() => ({}))]);
   S.members = m; S.results = r; S.intakes = k;
+  const [sub, st, rq] = await Promise.all([Store.getSub(S.user).catch(() => null), Store.getSettings().catch(() => ({})), Store.myPayReqs(S.user).catch(() => [])]);
+  S.sub = sub; S.settings = st; S.myReqs = rq;
 }
 async function afterLogin(u) {
   S.user = u; S.personId = '';
@@ -451,6 +510,16 @@ root.addEventListener('submit', async e => {
         prev: d.prev || '', prevNote: d.prevNote || '', meds: d.meds || '', medical: d.medical || '', famhx: d.famhx || '', school: d.school || '', notes: d.notes || '', date: new Date().toISOString() };
       INTAKE.impact.forEach(([k]) => { data.impact[k] = Number(d['imp_' + k] || 0); });
       await Store.saveIntake(S.user, cur().id, data); S.intakes[cur().id] = data; go('history');
+    } else if (f.dataset.form === 'payreq') {
+      const proof = await fileToDataUrl(f.querySelector('[name=proof]').files[0], 1000);
+      if (!d.ref.trim() && !proof) { S.msg = 'أدخل رقم العملية أو أرفق صورة إثبات التحويل.'; return render(); }
+      await Store.createPayReq(S.user, { country: S.country, method: d.method, ref: d.ref.trim(), sender: d.sender.trim(), proof });
+      S.myReqs = await Store.myPayReqs(S.user).catch(() => S.myReqs); S.info = 'تم إرسال طلبك. سيُفعَّل الاشتراك بعد مراجعة الإدارة لإثبات الدفع.'; go('subscribe', true);
+    } else if (f.dataset.form === 'paysettings') {
+      const pay = { eg: { price: d.eg_price, vodafone: d.eg_vodafone, instapay: d.eg_instapay }, sa: { price: d.sa_price, bank: d.sa_bank, name: d.sa_name, account: d.sa_account, iban: d.sa_iban, swift: d.sa_swift } };
+      await Store.saveSetting('pay', JSON.stringify(pay)); S.settings.pay = JSON.stringify(pay);
+      for (const k of ['qr_eg', 'qr_sa']) { const u = await fileToDataUrl(f.querySelector('[name=' + k + ']').files[0], 600); if (u) { await Store.saveSetting(k, u); S.settings[k] = u; } }
+      S.info = 'تم حفظ بيانات الدفع.'; render();
     } else if (f.dataset.form === 'member') {
       S.members.push(await Store.addMember(S.user, { name: d.name.trim(), relation: d.relation, birthYear: Number(d.birthYear), gender: d.gender })); go('family');
     } else if (f.dataset.form === 'profile') {
@@ -478,7 +547,14 @@ root.addEventListener('click', async e => {
     else if (act === 'mdel') { await Store.deleteMember(id); S.members = S.members.filter(m => m.id !== id); if (S.personId === id) S.personId = ''; render(); }
     else if (act === 'directory') go('directory');
     else if (act === 'cat') { S.cat = id; render(); }
-    else if (act === 'intro') { S.scale = SCALES.find(s => s.id === id); go('intro'); }
+    else if (act === 'intro') { const sc = SCALES.find(s => s.id === id), why = lockReason(sc, cur()); if (why) { S.info = why; return go('subscribe', true); } S.scale = sc; go('intro'); }
+    else if (act === 'subscribe') { S.scale = null; if (Store.live) S.myReqs = await Store.myPayReqs(S.user).catch(() => S.myReqs); go('subscribe'); }
+    else if (act === 'country') { S.country = id; render(); }
+    else if (act === 'subOn') { const cur0 = (S.subAdmin.subs.find(x => x.userId === id) || {}).until, until = await Store.activate(id, Number(b.dataset.m || 1), cur0);
+      S.subAdmin.subs = S.subAdmin.subs.filter(x => x.userId !== id).concat([{ userId: id, until }]);
+      if (b.dataset.req) { await Store.setReqStatus(b.dataset.req, 'approved'); S.subAdmin.reqs.find(x => x.id === b.dataset.req).status = 'approved'; } render(); }
+    else if (act === 'subOff') { await Store.cancelSub(id); S.subAdmin.subs = S.subAdmin.subs.filter(x => x.userId !== id); render(); }
+    else if (act === 'reqNo') { await Store.setReqStatus(id, 'rejected'); S.subAdmin.reqs.find(x => x.id === id).status = 'rejected'; render(); }
     else if (act === 'start') { Store.progress.clear(); S.idx = 0; S.answers = []; S.t0 = Date.now(); go('question'); }
     else if (act === 'pick') {
       const i = Number(b.dataset.i), k = Number(b.dataset.k); S.answers[i] = k;
@@ -509,7 +585,7 @@ root.addEventListener('click', async e => {
     else if (act === 'summary') { const p = cur(); S.sum = { name: p.self ? S.user.name : p.name, results: resultsOf(S.results, p.id), admin: false }; go('summary'); }
     else if (act === 'open') { S.result = (S.fromAdmin ? S.admin.results : S.results).find(r => r.id === id); S.scale = SCALES.find(s => s.id === S.result.scaleId); S.parentView = true; go('result'); }
     else if (act === 'del') { await Store.deleteResult(id); S.results = S.results.filter(r => r.id !== id); render(); }
-    else if (act === 'admin') { S.admin = await Store.adminData(); S.fromAdmin = true; S.scale = null; go('admin'); }
+    else if (act === 'admin') { S.admin = await Store.adminData(); S.subAdmin = await Store.adminSubs().catch(() => ({ reqs: [], subs: [] })); S.settings = await Store.getSettings().catch(() => S.settings); S.fromAdmin = true; S.scale = null; go('admin'); }
     else if (act === 'adminUser') { S.adminUser = id; go('adminUser'); }
     else if (act === 'asummary') { const u = S.admin.users.find(x => x.id === S.adminUser), m = S.admin.members.find(x => x.id === id);
       S.sum = { name: m ? m.name : (u ? u.name : ''), results: resultsOf(S.admin.results.filter(r => r.userId === S.adminUser), id || ''), admin: true }; go('summary'); }

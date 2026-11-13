@@ -129,6 +129,44 @@ const Store = (() => {
       try { await db.updateRow(cfg.databaseId, cfg.intakesTableId, rowId, row); }
       catch (e) { await db.createRow(cfg.databaseId, cfg.intakesTableId, rowId, row, [AW.Permission.read(role), AW.Permission.update(role), AW.Permission.delete(role)]); }
     },
+    // ---------- الاشتراك ----------
+    async getSub(user) {
+      if (!live) return ls.get('sub', null);
+      try { const r = await db.getRow(cfg.databaseId, cfg.subsTableId, user.id); return { until: r.until, plan: r.plan }; } catch (e) { return null; }
+    },
+    async getSettings() {
+      if (!live) return ls.get('settings', {});
+      const out = {}; (await db.listRows(cfg.databaseId, cfg.settingsTableId, [AW.Query.limit(20)])).rows.forEach(r => { out[r.$id] = r.value; });
+      return out;
+    },
+    async saveSetting(key, value) {
+      if (!live) { const all = ls.get('settings', {}); all[key] = value; ls.set('settings', all); return; }
+      try { await db.updateRow(cfg.databaseId, cfg.settingsTableId, key, { value }); } catch (e) { await db.createRow(cfg.databaseId, cfg.settingsTableId, key, { value }); }
+    },
+    async myPayReqs(user) {
+      if (!live) return ls.get('payreq', []);
+      const q = [AW.Query.orderDesc('$createdAt'), AW.Query.limit(5), AW.Query.select(['$id', '$createdAt', 'status', 'method', 'country'])]; if (user.isAdmin) q.push(AW.Query.equal('userId', user.id));
+      return (await db.listRows(cfg.databaseId, cfg.payreqTableId, q)).rows.map(r => ({ id: r.$id, date: r.$createdAt, status: r.status, method: r.method, country: r.country }));
+    },
+    async createPayReq(user, d) {
+      const row = { userId: user.id, userName: user.name, email: user.email, country: d.country, method: d.method, ref: d.ref, sender: d.sender, proof: d.proof || '', status: 'pending' };
+      if (!live) { const all = ls.get('payreq', []); all.unshift(Object.assign({ id: 'p' + Date.now(), date: new Date().toISOString() }, row)); ls.set('payreq', all); return; }
+      await db.createRow(cfg.databaseId, cfg.payreqTableId, AW.ID.unique(), row, [AW.Permission.read(AW.Role.user(user.id))]);
+    },
+    async adminSubs() {
+      const [reqs, subs] = await Promise.all([listAll(cfg.payreqTableId), listAll(cfg.subsTableId)]);
+      return { reqs: reqs.map(r => ({ id: r.$id, date: r.$createdAt, userId: r.userId, userName: r.userName, email: r.email, country: r.country, method: r.method, ref: r.ref, sender: r.sender, proof: r.proof, status: r.status })),
+        subs: subs.map(r => ({ userId: r.userId, until: r.until, plan: r.plan })) };
+    },
+    async activate(userId, months, currentUntil) {
+      const base = currentUntil && new Date(currentUntil) > new Date() ? new Date(currentUntil) : new Date();
+      const until = new Date(base.getTime() + months * 30 * 864e5).toISOString(), row = { userId, until, plan: months + 'm' };
+      try { await db.updateRow(cfg.databaseId, cfg.subsTableId, userId, row); }
+      catch (e) { await db.createRow(cfg.databaseId, cfg.subsTableId, userId, row, [AW.Permission.read(AW.Role.user(userId))]); }
+      return until;
+    },
+    async cancelSub(userId) { await db.deleteRow(cfg.databaseId, cfg.subsTableId, userId); },
+    async setReqStatus(id, status) { await db.updateRow(cfg.databaseId, cfg.payreqTableId, id, { status }); },
     async deleteResult(id) {
       if (!live) { ls.set('results', ls.get('results', []).filter(r => r.id !== id)); return; }
       await db.deleteRow(cfg.databaseId, cfg.tableId, id);
