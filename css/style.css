@@ -140,3 +140,44 @@ form.start{text-align:start}
 @keyframes fall{to{transform:translateY(520px) rotate(540deg);opacity:.2}}
 @media (max-width:520px){.journey{margin:-16px -16px 8px}.opts.kids{grid-template-columns:repeat(3,1fr)!important}.face{width:58px;height:58px}.pic{width:84px;height:84px;font-size:2.7rem}.opt.kid span{font-size:.95rem}}
 @media print{.journey,.confetti,.people{display:none!important}}
+
+/* ===== النسخة الرابعة: تنسيق أجمل ===== */
+body{background:radial-gradient(1200px 500px at 85% -10%,color-mix(in srgb,var(--pri) 14%,transparent),transparent),var(--bg);background-attachment:fixed}
+.top{position:sticky;top:0;z-index:5;background:color-mix(in srgb,var(--card) 86%,transparent);backdrop-filter:blur(10px);box-shadow:0 1px 12px rgba(0,0,0,.05)}
+.brand{font-size:1.3rem;background:linear-gradient(90deg,var(--pri),#7c3aed);-webkit-background-clip:text;background-clip:text;color:transparent}
+.brand .logo{color:initial;-webkit-text-fill-color:initial}
+nav{display:flex;flex-wrap:wrap;gap:4px}
+nav button{border-radius:99px;padding:6px 14px;transition:.15s}nav button:hover{background:color-mix(in srgb,var(--pri) 12%,transparent)}
+.card{border-radius:20px;box-shadow:0 6px 24px rgba(15,23,42,.07);border:1px solid color-mix(in srgb,var(--line) 60%,transparent)}
+.btn{border-radius:14px;transition:transform .12s,box-shadow .12s}.btn:hover{transform:translateY(-1px)}
+.btn.primary{background:linear-gradient(135deg,var(--pri),color-mix(in srgb,var(--pri) 60%,#7c3aed));border:0;box-shadow:0 6px 16px color-mix(in srgb,var(--pri) 35%,transparent)}
+input,select{border-radius:12px;transition:border-color .15s}input:focus,select:focus{border-color:var(--pri)}
+.hero.banner{display:flex;align-items:center;gap:18px;text-align:start;padding:20px 24px;border-radius:24px;color:#fff;
+  background:linear-gradient(135deg,var(--pri),#7c3aed);box-shadow:0 12px 30px color-mix(in srgb,var(--pri) 30%,transparent)}
+.hero.banner .muted{color:#ffffffd9}.hero.banner h1{margin:0}
+.hero.banner .heroart{width:130px;flex:none;margin:0;--pri:#fff}.hero.banner .heroart path[stroke]{stroke:#7c3aed}
+.cat{display:flex;align-items:center;gap:10px;font-size:1.15rem;margin:26px 0 12px}.cat span{font-size:1.4rem}
+.cat::after{content:'';flex:1;height:2px;border-radius:2px;background:linear-gradient(90deg,transparent,var(--line))}
+.grid{grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px}
+.scale{border-radius:20px;padding:18px;border:1px solid var(--line);box-shadow:0 3px 12px rgba(15,23,42,.05)}
+.scale::before{display:none}
+.scale .ico{font-size:1.9rem;width:58px;height:58px;display:grid;place-items:center;border-radius:16px;background:var(--tint);margin-bottom:8px}
+.scale:hover{transform:translateY(-4px);box-shadow:0 14px 28px rgba(15,23,42,.12);border-color:var(--pri)}
+.donetag{color:var(--ok);font-weight:700}
+.pchip{box-shadow:0 2px 8px rgba(15,23,42,.06);transition:.15s}.pchip:hover{transform:translateY(-1px)}
+.qcard{border-radius:26px}.bar{height:12px}.bar i{background:linear-gradient(90deg,var(--pri),#7c3aed);border-radius:99px}
+.opt{border-radius:16px}.opt:hover{transform:translateX(-3px)}
+.ring{--c:var(--ok);width:150px;height:150px;border-radius:50%;margin:0 auto 12px;display:grid;place-items:center;
+  background:radial-gradient(closest-side,var(--card) 78%,transparent 80%),conic-gradient(var(--c) calc(var(--p)*1%),var(--line) 0);-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.ring.r1{--c:var(--mild)}.ring.r2{--c:var(--mod)}.ring.r3{--c:var(--high)}
+.ring .num{font-size:2.3rem;line-height:1.1}.ring small{display:block;font-size:.8rem;font-weight:600;color:var(--muted)}
+.rep h1{margin-bottom:0}.rep h3{padding-inline-start:10px;border-inline-start:4px solid var(--pri)}
+.advice{border-radius:14px}.tile{border-radius:16px;background:color-mix(in srgb,var(--pri) 5%,var(--card))}
+table th{font-size:.9rem;color:var(--muted)}
+.theme-teen .hero.banner{background:linear-gradient(135deg,#7c3aed,#db2777)}
+.theme-teen .scale .ico{background:color-mix(in srgb,var(--tint) 30%,transparent)}
+.theme-teen .ring{background:radial-gradient(closest-side,var(--card) 78%,transparent 80%),conic-gradient(var(--c) calc(var(--p)*1%),var(--line) 0)}
+.theme-child .scale{border:3px solid #fff}.theme-child .scale .ico{width:74px;height:74px;font-size:2.6rem;border-radius:50%}
+.theme-child .cat{justify-content:center}.theme-child .cat::after{display:none}
+.theme-child .btn.primary{background:linear-gradient(135deg,#ff7a59,#ffb703);box-shadow:0 6px 0 #e85d3a}
+@media (max-width:520px){.hero.banner{flex-direction:column;text-align:center}.hero.banner .heroart{width:100px}.ring{width:128px;height:128px}}

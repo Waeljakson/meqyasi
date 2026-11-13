@@ -12,6 +12,8 @@ const fmtScore = r => (Number.isInteger(r.total) ? r.total : r.total.toFixed(2))
 const LV = ['طبيعي', 'خفيف', 'متوسط', 'مرتفع'];
 const RELATIONS = ['ابن', 'ابنة', 'زوج', 'زوجة', 'أب', 'أم', 'أخ', 'أخت', 'آخر'];
 const CHEERS = ['رائع! واصل 🌟', 'أنت بطل! 💪', 'ممتاز، اقتربنا 🚀', 'أحسنت! نجمة جديدة ⭐', 'شجاع جداً 🦁'];
+const CATS = [{ id: 'mood', name: 'المشاعر والمزاج', icon: '💗' }, { id: 'digital', name: 'العادات الرقمية', icon: '🎮' }, { id: 'strength', name: 'العافية والقوة النفسية', icon: '🌟' }];
+const catOf = s => s.domain === 'digital' ? 'digital' : s.positive ? 'strength' : 'mood';
 const HINTS = ['ما رأيك؟', 'أجب بصدق 😊', 'لا توجد إجابة خاطئة', 'خذ وقتك', 'أنا معك!'];
 
 // ---------- رسوم كرتونية (SVG أصلية) ----------
@@ -96,12 +98,15 @@ const V = {
     const chips = people().map(p => `<button class="pchip ${p.id === person.id ? 'on' : ''}" data-act="person" data-id="${p.id}"><span>${p.self ? '🙂' : ageOf(p) <= 12 ? '🧒' : ageOf(p) <= 17 ? '🧑' : p.gender === 'f' ? '👩' : '👨'}</span>${esc(p.self ? 'أنا' : p.name)}</button>`).join('');
     const who = person.self ? esc(S.user.name) : esc(person.name);
     const hello = st === 'child' ? `${MASCOT}<h1>أهلاً ${who}! جاهز للمغامرة؟</h1>` : `<h1>${person.self ? 'أهلاً ' + who : 'مقاييس ' + who}</h1>`;
-    const cards = list.map((s, i) => `<button class="scale k${i % 6}" data-act="intro" data-id="${s.id}">
+    const done = new Set(resultsOf(S.results, person.id).map(r => r.scaleId));
+    const card = (s, i) => `<button class="scale k${i % 6}" data-act="intro" data-id="${s.id}">
       <span class="ico">${s.icon}</span><b>${esc(s.name)}</b><small>${esc(s.measures)}</small>
-      <span class="meta">${s.items.length} سؤالاً · ${s.minutes} د</span></button>`).join('');
+      <span class="meta">${s.items.length} سؤالاً · ${s.minutes} د${done.has(s.id) ? ' · <span class="donetag">✓ أُنجز</span>' : ''}</span></button>`;
+    let k = 0;
+    const cards = CATS.map(c => { const g = list.filter(s => catOf(s) === c.id); return g.length ? `<h2 class="cat"><span>${c.icon}</span>${c.name}</h2><section class="grid">${g.map(s => card(s, k++)).join('')}</section>` : ''; }).join('');
     return shell(`<div class="people no-print">${chips}<button class="pchip add" data-act="family">＋ إضافة فرد</button></div>
-      <section class="hero">${hello}<p class="muted">${st === 'child' ? 'اختر لعبتك وأجب بصدق، لا توجد إجابة صحيحة أو خاطئة.' : 'اختر مقياساً وأجب بصدق؛ لا توجد إجابات صحيحة أو خاطئة.'}</p></section>
-      ${list.length ? `<section class="grid">${cards}</section>` : '<p class="card">لا توجد مقاييس مناسبة لمن هم دون 8 سنوات. ننصح باستشارة أخصائي نفسي للأطفال أو المرشد الطلابي.</p>'}
+      <section class="hero ${st === 'child' ? '' : 'banner'}">${st === 'child' ? '' : HERO}<div>${hello}<p class="muted">${st === 'child' ? 'اختر لعبتك وأجب بصدق، لا توجد إجابة صحيحة أو خاطئة.' : 'اختر مقياساً وأجب بصدق؛ لا توجد إجابات صحيحة أو خاطئة.'}</p></div></section>
+      ${list.length ? cards : '<p class="card">لا توجد مقاييس مناسبة لهذا العمر. ننصح باستشارة أخصائي نفسي للأطفال.</p>'}
       <p class="center no-print"><button class="link" data-act="editProfile">تعديل بياناتي</button></p>`);
   },
   intro() {
@@ -255,7 +260,7 @@ function reportBody(r, s, name) {
     <h1>تقرير ${esc(s.name)}</h1><p class="muted">${esc(s.formal)}</p>
     <div class="who"><span>الاسم: <b>${esc(name)}</b></span><span>العمر: <b>${r.age}</b></span><span>الجنس: <b>${r.gender === 'f' ? 'أنثى' : 'ذكر'}</b></span><span>التاريخ: <b>${fmtDate(r.date)}</b></span></div>
     ${r.urgent ? `<div class="urgent"><b>تنبيه مهم</b><p>${esc(cfg.urgentHelp)}</p></div>` : ''}
-    <div class="score"><div class="num">${fmtScore(r)}</div><div class="gauge ${s.positive ? 'pos' : ''}"><i style="width:${pct}%"></i></div><div class="band l${r.level}">${esc(r.band)}</div></div>
+    <div class="score"><div class="ring r${r.level}" style="--p:${pct}"><div class="num">${Number.isInteger(r.total) ? r.total : r.total.toFixed(1)}<small>من ${r.max}</small></div></div><div class="band l${r.level}">${esc(r.band)}</div></div>
     <div class="advice ${adv.tone}"><b>${adv.title}</b><p>${adv.text}</p></div>
     ${subs}
     <h3>خطة الدعم المقترحة</h3><p><b>الهدف:</b> ${plan.goal}</p>
@@ -374,7 +379,7 @@ root.addEventListener('input', e => {
   const i = root.querySelector('[name=q]'); if (i) { i.focus(); i.setSelectionRange(pos, pos); }
 });
 async function finish() {
-  const person = cur(), sc = scoreScale(S.scale, S.answers);
+  const person = cur(), sc = scoreScale(S.scale, S.answers, person.gender);
   const r = Object.assign(sc, { scaleId: S.scale.id, scaleName: S.scale.name, answers: S.answers.slice(), age: ageOf(person), gender: person.gender,
     memberId: person.id, memberName: person.self ? '' : person.name, userName: S.user.name, date: new Date().toISOString() });
   try { S.result = await Store.saveResult(S.user, r); } catch (err) { S.result = r; }
