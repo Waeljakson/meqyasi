@@ -43,6 +43,7 @@ function cur() { return S.members.find(m => m.id === S.personId) || selfPerson()
 function resultsOf(list, personId) { return list.filter(r => (r.memberId || '') === personId); }
 function scalesOf(person) { return scalesFor(ageOf(person), person.gender).filter(s => (s.respondent !== 'parent' || !person.self) && !(cfg.disabledScales || []).includes(s.id)); }
 // ---------- الاشتراك ----------
+function isLife() { return !!(S.sub && new Date(S.sub.until).getFullYear() >= 2090); }
 function isSub() { return !!(S.user && (S.user.isAdmin || (S.sub && new Date(S.sub.until) > new Date()))); }
 function freeLeft() { return Math.max(0, cfg.freeLimit - S.results.length); }
 function lockReason(scale, person) {
@@ -158,7 +159,7 @@ const V = {
       <section class="hero ${child ? '' : 'banner'}">${child ? '' : HERO}<div class="hgrow">${hello}<p class="muted">${child ? 'اختر لعبتك وأجب بصدق، لا توجد إجابة صحيحة أو خاطئة.' : 'اختر مقياساً وأجب بصدق؛ لا توجد إجابات صحيحة أو خاطئة.'}</p>
         <div class="prog"><div class="pbar"><i style="width:${pct}%"></i></div><span>أُنجز ${doneN} من ${all.length}</span></div></div>
         ${next && !child ? `<button class="nextup" data-act="intro" data-id="${next.id}"><small>مقترح الآن</small><b>${next.icon} ${esc(next.name)}</b><span>${next.minutes} دقائق · ابدأ ←</span></button>` : ''}</section>
-      ${isSub() ? '' : `<button class="freebar no-print" data-act="subscribe"><span>💎</span><div><b>النسخة المجانية: بقي لك ${freeLeft()} من ${cfg.freeLimit} مقياس</b><small>اشترك لاستخدام جميع المقاييس (${SCALES.length}) وإعادة القياس دون حد</small></div><i>اشترك الآن ←</i></button>`}
+      ${isLife() && !S.user.isAdmin ? '<p class="lifebar">💎 حساب مفعّل مدى الحياة</p>' : ''}${isSub() ? '' : `<button class="freebar no-print" data-act="subscribe"><span>💎</span><div><b>النسخة المجانية: بقي لك ${freeLeft()} من ${cfg.freeLimit} مقياس</b><small>اشترك لاستخدام جميع المقاييس (${SCALES.length}) وإعادة القياس دون حد</small></div><i>اشترك الآن ←</i></button>`}
       ${child ? '' : `<div class="tools no-print"><div class="tabs">${tabs}</div><label class="search"><span>🔍</span><input name="sq" placeholder="ابحث عن مقياس..." value="${esc(S.sq || '')}" aria-label="بحث"></label></div>`}
       ${sections || '<p class="card center muted">لا توجد مقاييس مطابقة للبحث.</p>'}
       ${child ? '' : `<button class="dirlink no-print" data-act="directory"><span>🏥</span><div><b>اختبارات يطبقها المختص فقط</b><small>ستانفورد-بينيه، وكسلر، فاينلاند، كونرز، MMPI وغيرها: ما تقيسه ومتى تُطلب</small></div><i>←</i></button>`}
@@ -281,7 +282,7 @@ const V = {
       const rs = byUser[u.id] || [], top = rs.length ? Math.max(...rs.map(r => r.level)) : -1, bl = A.blocked.includes(u.id), fam = A.members.filter(m => m.ownerId === u.id).length;
       return `<tr class="${bl ? 'blk' : ''}"><td>${esc(u.name)}</td><td dir="ltr">${esc(u.email)}</td><td>${u.birthYear ? YEAR - u.birthYear : '—'}</td><td>${u.gender === 'f' ? 'أنثى' : u.gender === 'm' ? 'ذكر' : '—'}</td><td>${fam}</td><td>${rs.length}</td>
         <td>${top < 0 ? '—' : `<span class="chip l${top}">${LV[top]}</span>`}</td><td>${bl ? 'موقوف' : 'نشط'}</td>
-        <td>${act(subOf(u.id)) ? `<span class="chip l0">حتى ${fmtDate(subOf(u.id).until)}</span> <button class="btn sm ghost" data-act="subOff" data-id="${u.id}">إلغاء</button>` : `<span class="muted">مجاني</span> <button class="btn sm" data-act="subOn" data-id="${u.id}" data-m="1">تفعيل شهر</button>`}</td>
+        <td>${act(subOf(u.id)) ? `<span class="chip l0">${new Date(subOf(u.id).until).getFullYear() >= 2090 ? 'مدى الحياة' : 'حتى ' + fmtDate(subOf(u.id).until)}</span> <button class="btn sm ghost" data-act="subOff" data-id="${u.id}">إلغاء</button>${new Date(subOf(u.id).until).getFullYear() >= 2090 ? '' : ` <button class="btn sm" data-act="subOn" data-id="${u.id}" data-m="life">مدى الحياة</button>`}` : `<span class="muted">مجاني</span> <button class="btn sm" data-act="subOn" data-id="${u.id}" data-m="1">تفعيل شهر</button> <button class="btn sm" data-act="subOn" data-id="${u.id}" data-m="life">مدى الحياة</button>`}</td>
         <td><button class="btn sm" data-act="adminUser" data-id="${u.id}">النتائج</button> ${u.id === S.user.id ? '' : `<button class="btn sm ghost" data-act="${bl ? 'unblock' : 'block'}" data-id="${u.id}">${bl ? 'إلغاء الإيقاف' : 'إيقاف'}</button>`}</td></tr>`;
     }).join('');
     const pend = SA.reqs.filter(r => r.status === 'pending');
@@ -334,7 +335,7 @@ V.subscribe = function () {
   const kv = (t, v, ltr) => v ? `<div class="payrow"><span>${t}</span><b ${ltr ? 'dir="ltr"' : ''}>${esc(v)}</b></div>` : '';
   const qr = S.settings['qr_' + c] ? `<img class="qr" src="${esc(S.settings['qr_' + c])}" alt="رمز QR للدفع">` : '';
   const status = S.user.isAdmin ? '<div class="advice ok"><b>حساب المدير</b><p>كل المقاييس متاحة لك دون اشتراك.</p></div>'
-    : on ? `<div class="advice ok"><b>اشتراكك مفعّل</b><p>سارٍ حتى ${fmtDate(S.sub.until)}. كل المقاييس متاحة لك دون حد.</p></div>`
+    : on ? (isLife() ? `<div class="advice ok"><b>حساب مفعّل مدى الحياة</b><p>كل المقاييس متاحة لك دون حد ودون تجديد.</p></div>` : `<div class="advice ok"><b>اشتراكك مفعّل</b><p>سارٍ حتى ${fmtDate(S.sub.until)}. كل المقاييس متاحة لك دون حد.</p></div>`)
     : last && last.status === 'pending' ? `<div class="advice mild"><b>طلبك قيد المراجعة</b><p>أُرسل في ${fmtDate(last.date)}. سيُفعَّل الاشتراك بعد تأكد الإدارة من التحويل.</p></div>`
     : last && last.status === 'rejected' ? '<div class="advice high"><b>لم يُقبل طلبك الأخير</b><p>تعذر التأكد من التحويل. راجع البيانات وأرسل الإثبات مرة أخرى.</p></div>'
     : `<div class="advice mild"><b>النسخة المجانية</b><p>بقي لك ${freeLeft()} من ${cfg.freeLimit} مقياس، وكل مقياس مرة واحدة.</p></div>`;
@@ -559,7 +560,7 @@ root.addEventListener('click', async e => {
     else if (act === 'intro') { const sc = SCALES.find(s => s.id === id), why = lockReason(sc, cur()); if (why) { S.info = why; return go('subscribe', true); } S.scale = sc; if (!S.user.isAdmin) Store.track('open', sc.id); go('intro'); }
     else if (act === 'subscribe') { S.scale = null; if (Store.live) S.myReqs = await Store.myPayReqs(S.user).catch(() => S.myReqs); go('subscribe'); }
     else if (act === 'country') { S.country = id; render(); }
-    else if (act === 'subOn') { const cur0 = (S.subAdmin.subs.find(x => x.userId === id) || {}).until, until = await Store.activate(id, Number(b.dataset.m || 1), cur0);
+    else if (act === 'subOn') { const cur0 = (S.subAdmin.subs.find(x => x.userId === id) || {}).until, until = await Store.activate(id, b.dataset.m === 'life' ? 'life' : Number(b.dataset.m || 1), cur0);
       S.subAdmin.subs = S.subAdmin.subs.filter(x => x.userId !== id).concat([{ userId: id, until }]);
       if (b.dataset.req) { await Store.setReqStatus(b.dataset.req, 'approved'); S.subAdmin.reqs.find(x => x.id === b.dataset.req).status = 'approved'; } render(); }
     else if (act === 'subOff') { await Store.cancelSub(id); S.subAdmin.subs = S.subAdmin.subs.filter(x => x.userId !== id); render(); }

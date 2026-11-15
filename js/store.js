@@ -163,7 +163,7 @@ const Store = (() => {
     },
     async activate(userId, months, currentUntil) {
       const base = currentUntil && new Date(currentUntil) > new Date() ? new Date(currentUntil) : new Date();
-      const until = new Date(base.getTime() + months * 30 * 864e5).toISOString(), row = { userId, until, plan: months + 'm' };
+      const life = months === 'life', until = life ? '2099-12-31T00:00:00.000Z' : new Date(base.getTime() + months * 30 * 864e5).toISOString(), row = { userId, until, plan: life ? 'life' : months + 'm' };
       try { await db.updateRow(cfg.databaseId, cfg.subsTableId, userId, row); }
       catch (e) { await db.createRow(cfg.databaseId, cfg.subsTableId, userId, row); }
       return until;

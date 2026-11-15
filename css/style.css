@@ -348,3 +348,5 @@ input[type=file]{padding:8px}summary{cursor:pointer}
 .vcol small{font-size:.68rem;color:var(--muted);white-space:nowrap}
 .vleg{display:flex;gap:16px;font-size:.85rem;color:var(--muted)}.vleg i{display:inline-block;width:10px;height:10px;border-radius:3px;background:var(--pri)}
 @media (max-width:520px){.vcol small{font-size:.55rem}.vchart{gap:3px}}
+
+.lifebar{margin:0 0 14px;padding:10px 16px;border-radius:14px;font-weight:800;text-align:center;color:#7a5200;background:linear-gradient(90deg,#fff3c4,#ffe08a);border:1.5px solid #f2c94c}
