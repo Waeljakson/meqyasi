@@ -165,7 +165,7 @@ const Store = (() => {
       const base = currentUntil && new Date(currentUntil) > new Date() ? new Date(currentUntil) : new Date();
       const until = new Date(base.getTime() + months * 30 * 864e5).toISOString(), row = { userId, until, plan: months + 'm' };
       try { await db.updateRow(cfg.databaseId, cfg.subsTableId, userId, row); }
-      catch (e) { await db.createRow(cfg.databaseId, cfg.subsTableId, userId, row, [AW.Permission.read(AW.Role.user(userId))]); }
+      catch (e) { await db.createRow(cfg.databaseId, cfg.subsTableId, userId, row); }
       return until;
     },
     async cancelSub(userId) { await db.deleteRow(cfg.databaseId, cfg.subsTableId, userId); },

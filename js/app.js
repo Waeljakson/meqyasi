@@ -303,7 +303,7 @@ const V = {
       <p class="vleg"><span><i></i> زيارات</span><span><i class="o"></i> فتح مقياس</span></p>
       <h3>المقاييس الأكثر فتحاً</h3>${Object.entries(VS.perScale).sort((a, b) => b[1] - a[1]).slice(0, 12).map(([k, v]) => `<div class="hbar"><span>${esc((SCALES.find(s => s.id === k) || { name: k }).name)}</span><i style="width:${Math.round(v / omx * 100)}%"></i><b>${v}</b></div>`).join('') || '<p class="muted">لم يُفتح أي مقياس بعد.</p>'}
       <p class="muted">الزيارة تُحسب مرة واحدة يومياً لكل متصفح، والزائر يُعرَّف برمز عشوائي على جهازه دون أي بيانات شخصية. زياراتك كمدير لا تُحسب.${VS.partial ? ' التفاصيل اليومية محسوبة من أحدث 5000 سجل.' : ''}</p></section>`;
-    return shell(`<section class="card"><h1>لوحة الإدارة</h1>
+    return shell(`<section class="card"><h1>لوحة الإدارة</h1>${S.msg ? `<p class="err">${esc(S.msg)}</p>` : ''}
       <div class="tiles">${tile(A.users.length, 'مستخدم')}${tile(SA.subs.filter(act).length, 'مشترك فعّال')}${tile(A.members.length, 'فرد أسرة')}${tile(A.results.length, 'مقياس مُنجز')}${tile(refer.length, 'نتيجة تحتاج مختصاً', 'warn')}${tile(urgent.length, 'تنبيه عاجل', 'danger')}</div></section>
       ${visitBlock}
       ${subsBlock}
