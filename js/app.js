@@ -249,7 +249,7 @@ const V = {
     const rows = groups.map(l => { const r = l[l.length - 1];
       return `<tr><td>${esc(r.scaleName)}</td><td>${fmtScore(r)}</td><td><span class="chip l${r.level}">${esc(r.band.length > 40 ? LV[r.level] : r.band)}${r.urgent ? ' · تنبيه عاجل' : ''}</span></td><td>${fmtDate(r.date)}</td><td>${l.length > 1 ? spark(l) : '—'}</td></tr>`; }).join('');
     const focus = last.filter(r => r.level >= 1).sort((a, b) => b.level - a.level).map(r => { const s = SCALES.find(x => x.id === r.scaleId), p = buildPlan(s, r);
-      return `<li><b>${esc(s.measures)}:</b> ${p.goal} ${p.steps[0]}</li>`; }).join('');
+      return `<li><b>${esc(s.measures)}</b> <small class="muted">(${p.approach})</small><br>${p.goal} أول خطوة: ${p.steps[0]}</li>`; }).join('');
     return shell(`<section class="card rep"><h1>التقرير الشامل</h1>
       <div class="who"><span>الاسم: <b>${esc(c.name)}</b></span><span>عدد المقاييس: <b>${groups.length}</b></span><span>التاريخ: <b>${fmtDate(new Date())}</b></span></div>
       ${urgent ? `<div class="urgent"><b>تنبيه مهم</b><p>${esc(cfg.urgentHelp)}</p></div>` : ''}
@@ -442,6 +442,20 @@ function trends(results) {
     return `<div class="trend"><b>${esc(z.scaleName)}</b>${spark(l)}<small>${l.length} مرات · من ${a.total} إلى ${z.total}</small></div>`; }).join('');
   return rows ? `<h3>تطور النتائج</h3>${rows}` : '';
 }
+function planHtml(plan) {
+  const li = xs => xs.map(x => `<li>${x}</li>`).join('');
+  return `<div class="plan">
+    <div class="plan-head"><h3>خطة الدعم المقترحة</h3><div class="plan-tags"><span>${plan.mode}</span><span>المدة: ${plan.duration}</span></div></div>
+    <div class="plan-approach"><b>الأسلوب المعتمد:</b> ${plan.approach}<small>${plan.why}</small></div>
+    <p><b>الهدف:</b> ${plan.goal}${plan.target ? `<br><b>مؤشر النجاح:</b> ${plan.target}` : ''}</p>
+    <div class="phases">${plan.phases.map((p, i) => `<div class="phase"><div class="phase-h"><i>${i + 1}</i><div><b>${p.title}</b><small>${p.when}</small></div></div><ol>${li(p.tasks)}</ol></div>`).join('')}</div>
+    ${plan.focus.length ? `<h4>تركيز مخصص من إجاباتك</h4><div class="focus">${plan.focus.map(f => `<div><b>${f.t}</b><span>${f.s}</span></div>`).join('')}</div>` : ''}
+    <div class="plan-cols"><div><h4>عادات يومية مساندة</h4><ul>${li(plan.habits)}</ul></div>
+    ${plan.family.length ? `<div><h4>دور الأسرة</h4><ul>${li(plan.family)}</ul></div>` : ''}</div>
+    <p class="monitor"><b>المتابعة والقياس:</b> ${plan.monitor}</p>
+    ${plan.warn.length ? `<div class="warnbox"><b>اطلب مساعدة فورية إذا ظهر:</b><ul>${li(plan.warn)}</ul></div>` : ''}
+    <p class="ref"><b>${plan.referral}</b></p></div>`;
+}
 function reportBody(r, s, name) {
   const adv = ADVICE[r.level], plan = buildPlan(s, r);
   const pct = Math.max(3, Math.min(100, Math.round((r.total / r.max) * 100)));
@@ -454,10 +468,7 @@ function reportBody(r, s, name) {
     <div class="score"><div class="ring r${r.level}" style="--p:${pct}"><div class="num">${Number.isInteger(r.total) ? r.total : r.total.toFixed(1)}<small>من ${r.max}</small></div></div><div class="band l${r.level}">${esc(r.band)}</div></div>
     <div class="advice ${adv.tone}"><b>${adv.title}</b><p>${adv.text}</p></div>
     ${subs}
-    <h3>خطة الدعم المقترحة</h3><p><b>الهدف:</b> ${plan.goal}</p>
-    <ol>${plan.steps.map(x => `<li>${x}</li>`).join('')}</ol>
-    <h3>عادات يومية مساندة</h3><ul>${plan.habits.map(x => `<li>${x}</li>`).join('')}</ul>
-    <p class="ref"><b>${plan.referral}</b></p>
+    ${planHtml(plan)}
     <p class="note">هذه خطة دعم ذاتي وإرشادي عامة وليست خطة علاج؛ الخطة العلاجية يضعها الأخصائي بعد المقابلة. النتيجة مؤشر فرز أولي وليست تشخيصاً. المصدر: ${esc(s.source)}</p></section>`;
 }
 function familyBody() {

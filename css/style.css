@@ -350,3 +350,24 @@ input[type=file]{padding:8px}summary{cursor:pointer}
 @media (max-width:520px){.vcol small{font-size:.55rem}.vchart{gap:3px}}
 
 .lifebar{margin:0 0 14px;padding:10px 16px;border-radius:14px;font-weight:800;text-align:center;color:#7a5200;background:linear-gradient(90deg,#fff3c4,#ffe08a);border:1.5px solid #f2c94c}
+
+/* خطة الدعم */
+.plan{margin-top:18px}
+.plan-head{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.plan-head h3{margin:0}.plan-tags{display:flex;gap:6px;flex-wrap:wrap}
+.plan-tags span{font-size:.8rem;font-weight:700;padding:4px 10px;border-radius:99px;background:color-mix(in srgb,var(--pri) 12%,transparent);color:var(--pri)}
+.plan-approach{margin:12px 0;padding:12px 14px;border-radius:12px;border-inline-start:4px solid var(--pri);background:color-mix(in srgb,var(--pri) 6%,var(--card))}
+.plan-approach small{display:block;color:var(--muted);margin-top:4px;line-height:1.7}
+.phases{display:grid;gap:10px;margin:12px 0}
+.phase{border:1.5px solid var(--line);border-radius:14px;padding:12px 14px}
+.phase-h{display:flex;align-items:center;gap:10px}.phase-h i{font-style:normal;font-weight:800;width:30px;height:30px;border-radius:50%;display:grid;place-items:center;background:var(--pri);color:#fff;flex:none}
+.phase-h small{display:block;color:var(--muted);font-size:.8rem}.phase ol{margin:8px 0 0;padding-inline-start:22px}.phase li{margin:5px 0;line-height:1.8}
+.focus{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px}
+.focus div{padding:10px 12px;border-radius:12px;background:color-mix(in srgb,var(--mod) 9%,var(--card));border:1px solid color-mix(in srgb,var(--mod) 30%,transparent)}
+.focus b{display:block;margin-bottom:3px}.focus span{font-size:.92rem;line-height:1.7}
+.plan-cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px}
+.plan h4{margin:14px 0 6px}
+.monitor{padding:10px 12px;border-radius:12px;background:color-mix(in srgb,var(--pri) 5%,var(--card))}
+.warnbox{padding:10px 14px;border-radius:12px;background:color-mix(in srgb,var(--high) 8%,var(--card));border:1.5px solid color-mix(in srgb,var(--high) 35%,transparent);margin:10px 0}
+.warnbox ul{margin:6px 0 0}
+@media print{.phase,.focus div,.warnbox{break-inside:avoid}}
